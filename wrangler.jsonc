@@ -1,0 +1,6 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "horoscope-calendar",
+  "compatibility_date": "2026-06-01",
+  "ai": { "binding": "AI" }
+}
