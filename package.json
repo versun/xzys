@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "wrangler pages dev . --live-reload",
-    "deploy": "wrangler pages deploy ."
+    "deploy": "wrangler pages deploy .",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.102.0"
   }
 }
