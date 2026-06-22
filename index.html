@@ -433,28 +433,6 @@
             .stream-preview:empty {
                 display: none;
             }
-            .settings-toggle {
-                position: fixed;
-                top: 16px;
-                right: 16px;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                background: var(--surface);
-                border: 1px solid var(--border);
-                color: var(--text2);
-                font-size: 18px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 100;
-                transition: all 0.2s;
-            }
-            .settings-toggle:hover {
-                border-color: var(--accent);
-                color: var(--accent2);
-            }
             .source-item {
                 display: flex;
                 align-items: center;
@@ -537,14 +515,6 @@
         </style>
     </head>
     <body>
-        <button
-            class="settings-toggle"
-            onclick="togglePanel(0)"
-            title="API 设置"
-        >
-            ⚙️
-        </button>
-
         <div class="container">
             <div class="header">
                 <h1>✨ 星座运势日历生成器</h1>

@@ -23,11 +23,18 @@
 ```
 horoscope-calendar/
 ├── index.html              # 单页应用（全部前端逻辑）
+├── public/
+│   └── utils.js            # 前端与测试共用的纯工具函数
 ├── functions/
 │   ├── api/
 │   │   ├── chat.js         # Workers AI 代理端点 (POST /api/chat)
 │   │   └── fetch.js        # CORS 代理抓取端点 (GET /api/fetch?url=...)
+├── tests/                  # 测试套件
+│   ├── api/                # Pages Functions 测试
+│   ├── setup.js            # 测试环境初始化
+│   └── utils.test.js       # utils.js 单元测试
 ├── package.json            # 依赖: wrangler
+├── bunfig.toml             # Bun 测试配置
 ├── wrangler.jsonc          # Cloudflare 配置 (ai binding)
 ├── .wrangler/              # 本地开发状态 (KV, Cache)
 └── test_content.txt        # 测试数据
@@ -42,9 +49,15 @@ horoscope-calendar/
   - 支持 Cloudflare Workers AI 和自定义 OpenAI 兼容 API 双模式
   - 链接自动抓取（通过本地 `/api/fetch` 代理）
   - 流式 AI 响应 + 实时预览
-  - 简单 JSON 提取与修复（剥离 markdown 代码块、补逗号/括号等常见 LLM 格式错误）
+  - 简单 JSON 提取与修复（剥离 markdown 代码块、补引号/逗号/括号等常见 LLM 格式错误）
   - 日期智能解析（支持多种中文日期格式）
   - 结果导出：CSV / JSON / Markdown
+
+### public/utils.js
+- 前端与测试共用的纯工具函数
+- JSON 提取与修复（`extractJsonStr` / `repairJson`）
+- 日期推断与标准化（`inferYearMonth` / `normalizeDate`）
+- 默认提示词模板（`DEFAULT_PROMPT_TEMPLATE`）
 
 ### functions/api/chat.js
 - Cloudflare Pages Function
@@ -73,14 +86,36 @@ horoscope-calendar/
 ## 开发命令
 
 ```bash
+# 安装依赖
+bun install
+
 # 本地开发（带 live-reload）
 bun run dev
 # 等价于: wrangler pages dev . --live-reload
 
-# 部署到 Cloudflare Pages
+# 运行测试
+bun test
+
+# 部署到 Cloudflare Pages（手动）
 bun run deploy
 # 等价于: wrangler pages deploy .
 ```
+
+## 自动部署（推荐）
+
+通过 Cloudflare Pages 的 Git 集成，每次 `git push` 到已连接的分支后会自动构建并部署：
+
+1. 在 [Cloudflare Dashboard](https://dash.cloudflare.com) 进入 **Workers & Pages**
+2. 创建 Pages 项目并选择 **Connect to Git**
+3. 授权 GitHub/GitLab 并选择本仓库
+4. 构建设置：
+   - **Production branch**: `main`
+   - **Build command**: （留空，纯静态 + Pages Functions，无需构建）
+   - **Build output directory**: `.`
+   - **Root directory**: `/`
+5. 保存后，后续推送到 `main` 将自动部署
+
+注意：Git 集成启用后不能切换回 Direct Upload；如需暂停自动部署，可在项目 **Settings → Builds → Branch control** 中关闭。
 
 ## 环境要求
 
@@ -103,4 +138,3 @@ bun run deploy
 - Workers AI 每天有免费额度限制（约 10,000 neurons）
 - 微信公众号等需要登录的页面无法自动抓取，需手动粘贴
 - 推理模型（如 GLM-4.7-Flash）默认关闭 thinking 模式以避免空输出
-- 长文本会自动估算 token 并截断，保留系统提示词和最近的上下文
