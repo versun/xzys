@@ -3,23 +3,6 @@
 
 // ─── Constants ───
 const SIGNS = ['白羊座','金牛座','双子座','巨蟹座','狮子座','处女座','天秤座','天蝎座','射手座','摩羯座','水瓶座','双鱼座'];
-const AREA_COLORS = {'事业':'area-事业','感情':'area-感情','财运':'area-财运','健康':'area-健康','学业':'area-学业','综合':'area-综合'};
-
-const MODEL_CONTEXT_WINDOWS = {
-  'gpt-4o': 128000, 'gpt-4o-mini': 128000, 'gpt-4-turbo': 128000,
-  'gpt-4': 8192, 'gpt-3.5-turbo': 16385,
-  'claude-3-opus': 200000, 'claude-3-sonnet': 200000, 'claude-3-haiku': 200000,
-  'claude-3-5-sonnet': 200000, 'claude-3-5-haiku': 200000, 'claude-3-7-sonnet': 200000,
-  'gemini-1.5-pro': 1000000, 'gemini-1.5-flash': 1000000,
-  'gemini-2.0-flash': 1000000, 'gemini-2.5-flash': 1000000, 'gemini-2.5-pro': 1000000,
-  'deepseek-chat': 64000, 'deepseek-reasoner': 64000,
-};
-const RESERVE_TOKENS = 8000;
-
-const CORS_PROXIES = [
-  url => 'https://corsproxy.io/?' + encodeURIComponent(url),
-  url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-];
 
 const DEFAULT_PROMPT_TEMPLATE = `# 角色
 你是一位专业的星座运势整理师，擅长从文字内容中精准提取结构化信息并输出为日历事件。
@@ -81,301 +64,132 @@ const DEFAULT_PROMPT_TEMPLATE = `# 角色
 # 原文内容
 {text}`;
 
-// ─── Token estimation ───
-function estimateTokens(text) {
-  if (!text) return 0;
-  const chinese = (text.match(/[\u4e00-\u9fff]/g) || []).length;
-  const nonChinese = text.replace(/[\u4e00-\u9fff]/g, '');
-  const engTokens = nonChinese.split(/\s+/).filter(Boolean).length * 1.3
-    + (nonChinese.match(/[^\w\s]/g) || []).length * 0.5;
-  return Math.round(chinese + engTokens);
-}
-
-function getContextWindow(model) {
-  if (MODEL_CONTEXT_WINDOWS[model]) return MODEL_CONTEXT_WINDOWS[model];
-  for (const [prefix, w] of Object.entries(MODEL_CONTEXT_WINDOWS)) {
-    if (model.startsWith(prefix.replace(/-$/, ''))) return w;
-  }
-  return 128000;
-}
-
-function truncateMessages(messages, maxTokens) {
-  const available = Math.max(maxTokens - RESERVE_TOKENS, maxTokens / 2);
-  const systemMsgs = messages.filter(m => m.role === 'system');
-  const otherMsgs = messages.filter(m => m.role !== 'system');
-  const systemTokens = systemMsgs.reduce((s, m) => s + estimateTokens(m.content || ''), 0);
-  let remaining = available - systemTokens;
-  if (remaining <= 0) return { result: systemMsgs, truncated: true };
-  const kept = [];
-  let used = 0;
-  for (let i = otherMsgs.length - 1; i >= 0; i--) {
-    const t = estimateTokens(otherMsgs[i].content || '');
-    if (used + t <= remaining) { kept.unshift(otherMsgs[i]); used += t; }
-    else break;
-  }
-  return { result: [...systemMsgs, ...kept], truncated: kept.length < otherMsgs.length };
-}
-
 // ─── JSON repair for LLM output ───
-function tokenizeJson(jsonStr) {
-  const tokens = [];
-  let i = 0;
-  while (i < jsonStr.length) {
-    const ch = jsonStr[i];
-    if (/\s/.test(ch)) {
-      let j = i;
-      while (j < jsonStr.length && /\s/.test(jsonStr[j])) j++;
-      tokens.push({ type: 'ws', value: jsonStr.slice(i, j) });
-      i = j;
-      continue;
-    }
-    if (ch === '{' || ch === '}' || ch === '[' || ch === ']' || ch === ':' || ch === ',') {
-      tokens.push({ type: ch, value: ch });
-      i++;
-      continue;
-    }
-    if (ch === '"') {
-      let j = i + 1, escaped = false;
-      while (j < jsonStr.length) {
-        if (escaped) { escaped = false; j++; continue; }
-        if (jsonStr[j] === '\\') { escaped = true; j++; continue; }
-        if (jsonStr[j] === '"') break;
-        j++;
-      }
-      tokens.push({ type: 'string', value: jsonStr.slice(i, j + 1) });
-      i = j + 1;
-      continue;
-    }
-    if (/[-\d]/.test(ch)) {
-      let j = i;
-      if (jsonStr[j] === '-') j++;
-      while (j < jsonStr.length && /\d/.test(jsonStr[j])) j++;
-      if (jsonStr[j] === '.') {
-        j++;
-        while (j < jsonStr.length && /\d/.test(jsonStr[j])) j++;
-      }
-      if (jsonStr[j] === 'e' || jsonStr[j] === 'E') {
-        j++;
-        if (jsonStr[j] === '+' || jsonStr[j] === '-') j++;
-        while (j < jsonStr.length && /\d/.test(jsonStr[j])) j++;
-      }
-      tokens.push({ type: 'number', value: jsonStr.slice(i, j) });
-      i = j;
-      continue;
-    }
-    if (jsonStr.slice(i, i + 4) === 'true') { tokens.push({ type: 'true', value: 'true' }); i += 4; continue; }
-    if (jsonStr.slice(i, i + 5) === 'false') { tokens.push({ type: 'false', value: 'false' }); i += 5; continue; }
-    if (jsonStr.slice(i, i + 4) === 'null') { tokens.push({ type: 'null', value: 'null' }); i += 4; continue; }
-    tokens.push({ type: 'char', value: ch });
-    i++;
-  }
-  return tokens;
-}
-
-function repairJson(jsonStr) {
-  // 去掉 Markdown 代码块
-  jsonStr = jsonStr.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1');
-  jsonStr = jsonStr.trim();
-
-  // 提取第一个 [ ... ] 或 { ... } 结构
-  const firstBracket = jsonStr.indexOf('[');
-  const firstBrace = jsonStr.indexOf('{');
-  let start = -1;
-  if (firstBracket !== -1 && (firstBrace === -1 || firstBracket <= firstBrace)) start = firstBracket;
-  else if (firstBrace !== -1) start = firstBrace;
-
-  if (start !== -1) {
-    const open = jsonStr[start];
-    const close = open === '[' ? ']' : '}';
-    let depth = 0, end = -1, inString = false, escapeNext = false;
-    for (let i = start; i < jsonStr.length; i++) {
-      const ch = jsonStr[i];
-      if (escapeNext) { escapeNext = false; continue; }
-      if (ch === '\\') { escapeNext = true; continue; }
-      if (ch === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (ch === open) depth++;
-      else if (ch === close) { depth--; if (depth === 0) { end = i; break; } }
-    }
-    if (end !== -1) jsonStr = jsonStr.slice(start, end + 1);
-    else jsonStr = jsonStr.slice(start);
-  }
-
-  const tokens = tokenizeJson(jsonStr);
-  const result = [];
-  const stack = [];
-  let lastNonWs = null;
-
-  for (let idx = 0; idx < tokens.length; idx++) {
-    const t = tokens[idx];
-
-    if (t.type === 'ws') {
-      result.push(t.value);
-      continue;
-    }
-
-    // 修复缺失的逗号
-    if (t.type === 'string' || t.type === '{' || t.type === '[') {
-      if (lastNonWs) {
-        const inObject = stack.length > 0 && stack[stack.length - 1] === '{';
-        const inArray = stack.length > 0 && stack[stack.length - 1] === '[';
-        const needsCommaInObject = inObject && lastNonWs.type !== '{' && lastNonWs.type !== ',' && lastNonWs.type !== ':';
-        const needsCommaInArray = inArray && lastNonWs.type !== '[' && lastNonWs.type !== ',';
-        if (needsCommaInObject || needsCommaInArray) {
-          result.push(',');
-          result.push(' ');
-          lastNonWs = { type: ',', value: ',' };
-        }
-      }
-    }
-
-    // 修复缺失的冒号：对象中属性名后面应该是 :
-    if (t.type === 'string' && stack.length > 0 && stack[stack.length - 1] === '{') {
-      if (lastNonWs && (lastNonWs.type === '{' || lastNonWs.type === ',')) {
-        let j = idx + 1;
-        while (j < tokens.length && tokens[j].type === 'ws') j++;
-        const next = tokens[j];
-        if (!next || next.type !== ':') {
-          result.push(t.value);
-          result.push(':');
-          lastNonWs = { type: ':', value: ':' };
-          continue;
-        }
-      }
-    }
-
-    // 修复末尾多余逗号
-    if ((t.type === '}' || t.type === ']') && lastNonWs && lastNonWs.type === ',') {
-      while (result.length > 0 && /\s/.test(result[result.length - 1])) result.pop();
-      if (result.length > 0 && result[result.length - 1] === ',') result.pop();
-      lastNonWs = null;
-    }
-
-    result.push(t.value);
-    lastNonWs = t;
-
-    if (t.type === '{' || t.type === '[') stack.push(t.type);
-    else if (t.type === '}' || t.type === ']') stack.pop();
-  }
-
-  // 补全未闭合的括号
-  while (stack.length > 0) {
-    const open = stack.pop();
-    result.push(open === '{' ? '}' : ']');
-  }
-
-  return result.join('');
-}
-
 function extractJsonStr(raw) {
-  const trimmed = raw.trim();
-  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return trimmed;
-  const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (codeBlockMatch) return codeBlockMatch[1].trim();
-  const start = raw.indexOf('[');
-  if (start === -1) {
-    const objStart = raw.indexOf('{');
-    if (objStart === -1) throw new Error('未找到 JSON 数组或对象');
-    return raw.slice(objStart);
+  const code = raw.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1').trim();
+  const firstArr = code.indexOf('[');
+  const firstObj = code.indexOf('{');
+  const first = Math.min(firstArr >= 0 ? firstArr : Infinity, firstObj >= 0 ? firstObj : Infinity);
+  if (!isFinite(first)) throw new Error('未找到 JSON 数组或对象');
+
+  const open = code[first];
+  const close = open === '[' ? ']' : '}';
+  let depth = 0, end = -1, inStr = false, esc = false;
+  for (let i = first; i < code.length; i++) {
+    const c = code[i];
+    if (esc) { esc = false; continue; }
+    if (c === '\\') { esc = true; continue; }
+    if (c === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (c === open) depth++;
+    else if (c === close) { depth--; if (depth === 0) { end = i; break; } }
   }
-  let depth = 0, end = -1, inString = false, escapeNext = false;
-  for (let i = start; i < raw.length; i++) {
-    const ch = raw[i];
-    if (escapeNext) { escapeNext = false; continue; }
-    if (ch === '\\') { escapeNext = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '[') depth++;
-    else if (ch === ']') { depth--; if (depth === 0) { end = i; break; } }
-  }
-  if (end === -1) {
-    const lastBrace = raw.lastIndexOf('}');
-    if (lastBrace > start) return raw.slice(start, lastBrace + 1) + ']';
-    throw new Error('JSON 数组括号不匹配');
-  }
-  return raw.slice(start, end + 1);
+  return end === -1 ? code.slice(first) : code.slice(first, end + 1);
 }
 
-function getDepthAndStringState(jsonStr) {
-  let depth = 0, inString = false, escapeNext = false;
-  for (let i = 0; i < jsonStr.length; i++) {
-    const ch = jsonStr[i];
-    if (escapeNext) { escapeNext = false; continue; }
-    if (ch === '\\') { escapeNext = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '[' || ch === '{') depth++;
-    else if (ch === '}' || ch === ']') depth--;
-  }
-  return { depth, inString };
-}
+function repairJson(raw) {
+  let s = extractJsonStr(raw);
+  let out = '', last = '', stack = [];
+  let inStr = false, esc = false, needColon = false, isKeyString = false;
+  let expectValue = false, inUnquoted = false;
+  const isValueStart = (c) => c === '"' || c === '{' || c === '[' || /[\d\-]/.test(c) || c === 't' || c === 'f' || c === 'n';
 
-function findLastStringStart(jsonStr) {
-  let inString = false, escapeNext = false, start = -1;
-  for (let i = 0; i < jsonStr.length; i++) {
-    const ch = jsonStr[i];
-    if (escapeNext) { escapeNext = false; continue; }
-    if (ch === '\\') { escapeNext = true; continue; }
-    if (ch === '"') {
-      if (!inString) start = i;
-      inString = !inString;
-    }
-  }
-  return inString ? start : -1;
-}
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
 
-function truncateToLastValidRecord(jsonStr) {
-  // 当 JSON 末尾被截断时，保留最后一个完整的对象/记录，丢弃不完整记录并关闭数组
-  const candidates = [];
-  let depth = 0, inString = false, escapeNext = false;
-  for (let i = 0; i < jsonStr.length; i++) {
-    const ch = jsonStr[i];
-    if (escapeNext) { escapeNext = false; continue; }
-    if (ch === '\\') { escapeNext = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '[' || ch === '{') depth++;
-    else if (ch === '}' || ch === ']') {
-      if (depth === 2 && ch === '}') candidates.push(i);
-      depth--;
-    }
-  }
-  for (let idx = candidates.length - 1; idx >= 0; idx--) {
-    const end = candidates[idx] + 1;
-    let candidate = jsonStr.slice(0, end).trim().replace(/,\s*$/, '') + '\n]';
-    try {
-      JSON.parse(candidate);
-      return candidate;
-    } catch {}
-  }
-
-  // 没有完整对象：尝试关闭未终止的字符串和括号
-  const state = getDepthAndStringState(jsonStr);
-  if (state.inString) {
-    const stringStart = findLastStringStart(jsonStr);
-    let closePos = jsonStr.length;
-    for (let i = stringStart + 1; i < jsonStr.length; i++) {
-      if (jsonStr[i] === '\n' || jsonStr[i] === '\r') {
-        closePos = i;
-        break;
+    if (inUnquoted) {
+      if (c === ',' || c === '}' || c === ']' || c === '\n' || c === '\r') {
+        out += '"';
+        inUnquoted = false;
+      } else {
+        out += c === '"' ? '\\"' : c;
+        continue;
       }
     }
-    let candidate = jsonStr.slice(0, closePos).trimEnd() + '"';
-    const state2 = getDepthAndStringState(candidate);
-    let d = state2.depth;
-    const closers = [];
-    while (d > 0) {
-      closers.push(d === 1 ? ']' : '}');
-      d--;
+
+    if (esc) { esc = false; out += c; last = c; continue; }
+    if (c === '\\') { esc = true; out += c; last = c; continue; }
+
+    if (needColon) {
+      if (c === ' ' || c === '\n' || c === '\t' || c === '\r') {
+        out += c;
+        continue;
+      }
+      if (c === ':') {
+        needColon = false;
+      } else if (c === '}') {
+        out += ':null';
+        needColon = false;
+      } else {
+        out += ':';
+        needColon = false;
+        expectValue = true;
+      }
     }
-    candidate = candidate + closers.join('');
-    try {
-      JSON.parse(candidate);
-      return candidate;
-    } catch {}
+
+    if (c === '"') {
+      expectValue = false;
+      if (inStr) {
+        if (isKeyString) needColon = true;
+        isKeyString = false;
+      } else {
+        isKeyString = stack.length > 0 && stack[stack.length - 1] === '{' && (last === '{' || last === ',');
+      }
+      inStr = !inStr;
+      out += c;
+      last = c;
+      continue;
+    }
+
+    if (inStr) { out += c; last = c; continue; }
+
+    if (expectValue) {
+      if (c === ' ' || c === '\n' || c === '\t' || c === '\r') {
+        out += c;
+        continue;
+      }
+      if (c === '}' || c === ']') {
+        out += 'null';
+        expectValue = false;
+      } else if (!isValueStart(c)) {
+        out += '"';
+        out += c;
+        inUnquoted = true;
+        expectValue = false;
+        continue;
+      } else {
+        expectValue = false;
+      }
+    }
+
+    if (c === '{' || c === '[') {
+      if (last === '}' || last === ']') out += ',';
+      stack.push(c);
+      if (c === '[') expectValue = true;
+    } else if (c === '}' || c === ']') {
+      while (out.endsWith(' ') || out.endsWith(',')) {
+        if (out.endsWith(',')) { out = out.slice(0, -1); break; }
+        out = out.slice(0, -1);
+      }
+      stack.pop();
+    } else if (c === ':') {
+      expectValue = true;
+    } else if (c === ',' && stack.length > 0 && stack[stack.length - 1] === '[') {
+      expectValue = true;
+    }
+    out += c;
+    if (c !== ' ' && c !== '\n' && c !== '\t' && c !== '\r') last = c;
   }
 
-  return jsonStr;
+  if (esc) out = out.slice(0, -1);
+  if (inStr) {
+    out += '"';
+    if (isKeyString) needColon = true;
+  }
+  if (inUnquoted) out += '"';
+  if (needColon) out += ':null';
+  while (stack.length) out += stack.pop() === '{' ? '}' : ']';
+  return out;
 }
 
 // ─── Date normalization ───
@@ -455,10 +269,8 @@ function normalizeDate(dateStr, defaultYear, defaultMonth) {
 // Export for Node.js/Bun test environment
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    SIGNS, AREA_COLORS, MODEL_CONTEXT_WINDOWS, RESERVE_TOKENS, CORS_PROXIES, DEFAULT_PROMPT_TEMPLATE,
-    estimateTokens, getContextWindow, truncateMessages,
-    tokenizeJson, repairJson, extractJsonStr,
-    getDepthAndStringState, findLastStringStart, truncateToLastValidRecord,
+    SIGNS, DEFAULT_PROMPT_TEMPLATE,
+    repairJson, extractJsonStr,
     inferYearMonth, normalizeDate,
   };
 }

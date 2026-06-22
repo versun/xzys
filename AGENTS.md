@@ -40,10 +40,9 @@ horoscope-calendar/
 - 四步向导式界面：API 设置 → 输入内容 → AI 处理 → 结果展示
 - 核心功能：
   - 支持 Cloudflare Workers AI 和自定义 OpenAI 兼容 API 双模式
-  - 链接自动抓取（通过 CORS 代理 + 本地 /api/fetch）
-  - 智能 Token 估算和上下文截断（防止超长输入）
+  - 链接自动抓取（通过本地 `/api/fetch` 代理）
   - 流式 AI 响应 + 实时预览
-  - 多层 JSON 容错修复（LLM 输出常见格式错误）
+  - 简单 JSON 提取与修复（剥离 markdown 代码块、补逗号/括号等常见 LLM 格式错误）
   - 日期智能解析（支持多种中文日期格式）
   - 结果导出：CSV / JSON / Markdown
 
@@ -91,11 +90,11 @@ bun run deploy
 
 ## 数据流
 
-1. 用户粘贴运势文章链接 → 前端通过 `/api/fetch` 或公共 CORS 代理抓取 HTML
+1. 用户粘贴运势文章链接 → 前端通过 `/api/fetch` 代理抓取 HTML
 2. 前端用 DOMParser 提取纯文本（去除 script/style/nav/footer 等噪音）
 3. 构建结构化提示词（默认模板 + 自定义变量替换）
 4. 发送给 AI（Workers AI 或自定义 API）
-5. AI 返回 JSON 数组 → 前端多层解析修复 → 日期标准化
+5. AI 返回 JSON 数组 → 前端简单解析修复 → 日期标准化
 6. 渲染表格 → 支持 CSV/JSON/Markdown 导出
 
 ## 注意事项

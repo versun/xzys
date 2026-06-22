@@ -248,10 +248,8 @@ describe("functions/api/fetch.js", () => {
       const req = createGetRequest("https://example.com/");
       const ctx = createContext(req);
       const originalFetch = global.fetch;
-      // Create a stream that yields chunks larger than 2MB limit
       const hugeStream = new ReadableStream({
         start(controller) {
-          // 2MB + 1 byte chunk
           controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1));
           controller.close();
         }
@@ -259,15 +257,11 @@ describe("functions/api/fetch.js", () => {
       global.fetch = () => Promise.resolve(new Response(hugeStream, { status: 200 }));
       const resp = await onRequestGet(ctx);
       global.fetch = originalFetch;
-      // The response body should be a limited stream that errors when read
       expect(resp.status).toBe(200);
-      // Reading the aborted stream should throw or return empty
       try {
         const body = await resp.text();
-        // If it doesn't throw, body should be empty (aborted before any data passed through)
         expect(body.length).toBeLessThan(100);
       } catch (e) {
-        // AbortError is expected — the stream was aborted due to size limit
         expect(e.message).toContain("响应体超过最大限制");
       }
     });

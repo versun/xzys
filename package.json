@@ -1,6 +1,6 @@
 {
   "name": "horoscope-calendar",
-  "version": "202606161701",
+  "version": "202606221000",
   "private": true,
   "scripts": {
     "dev": "wrangler pages dev . --live-reload",

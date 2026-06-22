@@ -1,1097 +1,1711 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>星座运势日历生成器</title>
-<style>
-:root {
-  --bg: #0f0f13;
-  --surface: #1a1a24;
-  --surface2: #22223a;
-  --border: #2d2d44;
-  --text: #e8e8f0;
-  --text2: #9999b0;
-  --accent: #7c6cf0;
-  --accent2: #9d8df7;
-  --green: #4ade80;
-  --red: #f87171;
-  --orange: #fb923c;
-  --blue: #60a5fa;
-  --radius: 10px;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  line-height: 1.6;
-}
-.container { max-width: 900px; margin: 0 auto; padding: 20px; }
-.header { text-align: center; padding: 40px 0 30px; }
-.header h1 {
-  font-size: 28px;
-  background: linear-gradient(135deg, var(--accent), var(--blue));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 8px;
-}
-.header p { color: var(--text2); font-size: 14px; }
-.steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 30px; }
-.step-dot {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 600;
-  border: 2px solid var(--border);
-  color: var(--text2);
-  transition: all 0.3s;
-  cursor: pointer;
-}
-.step-dot:hover { border-color: var(--accent2); color: var(--accent2); }
-.step-dot.active { border-color: var(--accent); background: var(--accent); color: #fff; cursor: default; }
-.step-dot.active:hover { border-color: var(--accent); color: #fff; }
-.step-dot.done { border-color: var(--green); background: var(--green); color: #000; }
-.step-dot.done:hover { border-color: var(--green); color: #000; }
-.panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px;
-  margin-bottom: 16px;
-  display: none;
-  animation: fadeIn 0.3s ease;
-}
-.panel.visible { display: block; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.panel-title {
-  font-size: 18px; font-weight: 600; margin-bottom: 16px;
-  display: flex; align-items: center; gap: 8px;
-}
-.panel-title .icon { font-size: 20px; }
-label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
-.checkbox-label {
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer; color: var(--text); font-size: 14px;
-}
-.checkbox-label input[type="checkbox"] {
-  width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer;
-}
-input[type="text"], input[type="password"], textarea, select {
-  width: 100%; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
-  outline: none; transition: border-color 0.2s; font-family: inherit;
-}
-input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-textarea { resize: vertical; min-height: 160px; }
-.form-group { margin-bottom: 16px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-hint { font-size: 12px; color: var(--text2); margin-top: 4px; }
-.form-hint a { color: var(--accent2); text-decoration: none; }
-.btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 10px 20px; border-radius: 8px; border: none;
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  transition: all 0.2s; font-family: inherit;
-}
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: var(--accent2); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-.btn-secondary:hover { border-color: var(--accent); }
-.btn-sm { padding: 6px 14px; font-size: 13px; }
-.btn-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.tag {
-  padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;
-  border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text2); transition: all 0.2s; user-select: none;
-}
-.tag.selected { border-color: var(--accent); background: rgba(124,108,240,0.15); color: var(--accent2); }
-.tag:hover { border-color: var(--accent); }
-.status-bar {
-  padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none;
-}
-.status-bar.visible { display: flex; align-items: center; gap: 8px; }
-.status-bar.info { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); color: var(--blue); }
-.status-bar.success { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); color: var(--green); }
-.status-bar.error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--red); }
-.status-bar.warning { background: rgba(251,146,60,0.1); border: 1px solid rgba(251,146,60,0.3); color: var(--orange); }
-.spinner {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff; border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.result-wrap { overflow-x: auto; margin-top: 16px; }
-.result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.result-table th {
-  background: var(--surface2); padding: 10px 12px; text-align: left;
-  font-weight: 600; color: var(--text2); border-bottom: 2px solid var(--border); white-space: nowrap;
-}
-.result-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-.result-table tr:hover td { background: rgba(124,108,240,0.05); }
-.result-table .date-cell { white-space: nowrap; color: var(--accent2); font-weight: 500; }
-.result-table .sign-cell { white-space: nowrap; font-weight: 600; }
-.result-table .area-cell {
-  white-space: nowrap; font-size: 12px; padding: 2px 8px;
-  border-radius: 10px; display: inline-block;
-}
-.area-事业 { background: rgba(96,165,250,0.15); color: var(--blue); }
-.area-感情 { background: rgba(248,113,113,0.15); color: var(--red); }
-.area-财运 { background: rgba(251,146,60,0.15); color: var(--orange); }
-.area-健康 { background: rgba(74,222,128,0.15); color: var(--green); }
-.area-学业 { background: rgba(124,108,240,0.15); color: var(--accent2); }
-.area-综合 { background: rgba(153,153,176,0.15); color: var(--text2); }
-.empty { text-align: center; padding: 40px 20px; color: var(--text2); }
-.empty .icon { font-size: 40px; margin-bottom: 12px; }
-.collapse-header {
-  cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px;
-}
-.collapse-header .arrow { transition: transform 0.2s; font-size: 12px; }
-.collapse-header.open .arrow { transform: rotate(90deg); }
-.collapse-body { display: none; margin-top: 12px; }
-.collapse-body.open { display: block; }
-.prompt-preview {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px; font-size: 13px; line-height: 1.7; max-height: 300px;
-  overflow-y: auto; white-space: pre-wrap; color: var(--text2);
-}
-.stream-preview {
-  margin-top: 16px; text-align: left;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
-  padding: 14px; font-size: 13px; line-height: 1.7;
-  max-height: 240px; min-height: 60px; overflow-y: auto;
-  white-space: pre-wrap; color: var(--text2);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-.stream-preview:empty { display: none; }
-.settings-toggle {
-  position: fixed; top: 16px; right: 16px;
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--surface); border: 1px solid var(--border);
-  color: var(--text2); font-size: 18px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 100; transition: all 0.2s;
-}
-.settings-toggle:hover { border-color: var(--accent); color: var(--accent2); }
-.source-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; background: var(--surface2);
-  border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--border);
-}
-.source-item .name { flex: 1; font-size: 14px; }
-.source-item .badge {
-  font-size: 11px; padding: 2px 8px; border-radius: 10px;
-  background: rgba(124,108,240,0.15); color: var(--accent2);
-}
-.source-item .remove {
-  width: 24px; height: 24px; border-radius: 50%; border: none;
-  background: transparent; color: var(--text2); cursor: pointer;
-  font-size: 16px; display: flex; align-items: center; justify-content: center;
-}
-.source-item .remove:hover { background: rgba(248,113,113,0.15); color: var(--red); }
-.tooltip { position: relative; cursor: help; }
-.tooltip::after {
-  content: attr(data-tip); position: absolute; bottom: 100%; left: 50%;
-  transform: translateX(-50%); padding: 6px 10px; background: #333;
-  color: #fff; font-size: 12px; border-radius: 6px; white-space: nowrap;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
-}
-.tooltip:hover::after { opacity: 1; }
-.footer {
-  text-align: center;
-  padding: 24px 20px;
-  font-size: 12px;
-  color: var(--text2);
-  opacity: 0.8;
-}
-@media (max-width: 640px) {
-  .form-row { grid-template-columns: 1fr; }
-  .header h1 { font-size: 22px; }
-  .container { padding: 12px; }
-}
-</style>
-</head>
-<body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>星座运势日历生成器</title>
+        <style>
+            :root {
+                --bg: #0f0f13;
+                --surface: #1a1a24;
+                --surface2: #22223a;
+                --border: #2d2d44;
+                --text: #e8e8f0;
+                --text2: #9999b0;
+                --accent: #7c6cf0;
+                --accent2: #9d8df7;
+                --green: #4ade80;
+                --red: #f87171;
+                --orange: #fb923c;
+                --blue: #60a5fa;
+                --radius: 10px;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    "PingFang SC", "Microsoft YaHei", sans-serif;
+                background: var(--bg);
+                color: var(--text);
+                min-height: 100vh;
+                line-height: 1.6;
+            }
+            .container {
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .header {
+                text-align: center;
+                padding: 40px 0 30px;
+            }
+            .header h1 {
+                font-size: 28px;
+                background: linear-gradient(135deg, var(--accent), var(--blue));
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin-bottom: 8px;
+            }
+            .header p {
+                color: var(--text2);
+                font-size: 14px;
+            }
+            .steps {
+                display: flex;
+                justify-content: center;
+                gap: 8px;
+                margin-bottom: 30px;
+            }
+            .step-dot {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: 600;
+                border: 2px solid var(--border);
+                color: var(--text2);
+                transition: all 0.3s;
+                cursor: pointer;
+            }
+            .step-dot:hover {
+                border-color: var(--accent2);
+                color: var(--accent2);
+            }
+            .step-dot.active {
+                border-color: var(--accent);
+                background: var(--accent);
+                color: #fff;
+                cursor: default;
+            }
+            .step-dot.active:hover {
+                border-color: var(--accent);
+                color: #fff;
+            }
+            .step-dot.done {
+                border-color: var(--green);
+                background: var(--green);
+                color: #000;
+            }
+            .step-dot.done:hover {
+                border-color: var(--green);
+                color: #000;
+            }
+            .panel {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 24px;
+                margin-bottom: 16px;
+                display: none;
+                animation: fadeIn 0.3s ease;
+            }
+            .panel.visible {
+                display: block;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .panel-title {
+                font-size: 18px;
+                font-weight: 600;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .panel-title .icon {
+                font-size: 20px;
+            }
+            label {
+                display: block;
+                font-size: 13px;
+                color: var(--text2);
+                margin-bottom: 6px;
+                font-weight: 500;
+            }
+            .checkbox-label {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+                color: var(--text);
+                font-size: 14px;
+            }
+            .checkbox-label input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: var(--accent);
+                cursor: pointer;
+            }
+            input[type="text"],
+            input[type="password"],
+            textarea,
+            select {
+                width: 100%;
+                background: var(--surface2);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 10px 14px;
+                color: var(--text);
+                font-size: 14px;
+                outline: none;
+                transition: border-color 0.2s;
+                font-family: inherit;
+            }
+            input:focus,
+            textarea:focus,
+            select:focus {
+                border-color: var(--accent);
+            }
+            textarea {
+                resize: vertical;
+                min-height: 160px;
+            }
+            .form-group {
+                margin-bottom: 16px;
+            }
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+            .form-hint {
+                font-size: 12px;
+                color: var(--text2);
+                margin-top: 4px;
+            }
+            .form-hint a {
+                color: var(--accent2);
+                text-decoration: none;
+            }
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 10px 20px;
+                border-radius: 8px;
+                border: none;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-family: inherit;
+            }
+            .btn-primary {
+                background: var(--accent);
+                color: #fff;
+            }
+            .btn-primary:hover {
+                background: var(--accent2);
+            }
+            .btn-primary:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .btn-secondary {
+                background: var(--surface2);
+                color: var(--text);
+                border: 1px solid var(--border);
+            }
+            .btn-secondary:hover {
+                border-color: var(--accent);
+            }
+            .btn-sm {
+                padding: 6px 14px;
+                font-size: 13px;
+            }
+            .btn-row {
+                display: flex;
+                gap: 10px;
+                margin-top: 8px;
+                flex-wrap: wrap;
+            }
+            .tag-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+            .tag {
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                cursor: pointer;
+                border: 1px solid var(--border);
+                background: var(--surface2);
+                color: var(--text2);
+                transition: all 0.2s;
+                user-select: none;
+            }
+            .tag.selected {
+                border-color: var(--accent);
+                background: rgba(124, 108, 240, 0.15);
+                color: var(--accent2);
+            }
+            .tag:hover {
+                border-color: var(--accent);
+            }
+            .status-bar {
+                padding: 12px 16px;
+                border-radius: 8px;
+                font-size: 13px;
+                margin-bottom: 16px;
+                display: none;
+            }
+            .status-bar.visible {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .status-bar.info {
+                background: rgba(96, 165, 250, 0.1);
+                border: 1px solid rgba(96, 165, 250, 0.3);
+                color: var(--blue);
+            }
+            .status-bar.success {
+                background: rgba(74, 222, 128, 0.1);
+                border: 1px solid rgba(74, 222, 128, 0.3);
+                color: var(--green);
+            }
+            .status-bar.error {
+                background: rgba(248, 113, 113, 0.1);
+                border: 1px solid rgba(248, 113, 113, 0.3);
+                color: var(--red);
+            }
+            .status-bar.warning {
+                background: rgba(251, 146, 60, 0.1);
+                border: 1px solid rgba(251, 146, 60, 0.3);
+                color: var(--orange);
+            }
+            .spinner {
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-top-color: #fff;
+                border-radius: 50%;
+                animation: spin 0.6s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .result-wrap {
+                overflow-x: auto;
+                margin-top: 16px;
+            }
+            .result-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .result-table th {
+                background: var(--surface2);
+                padding: 10px 12px;
+                text-align: left;
+                font-weight: 600;
+                color: var(--text2);
+                border-bottom: 2px solid var(--border);
+                white-space: nowrap;
+            }
+            .result-table td {
+                padding: 10px 12px;
+                border-bottom: 1px solid var(--border);
+                vertical-align: top;
+            }
+            .result-table tr:hover td {
+                background: rgba(124, 108, 240, 0.05);
+            }
+            .result-table .date-cell {
+                white-space: nowrap;
+                color: var(--accent2);
+                font-weight: 500;
+            }
+            .result-table .sign-cell {
+                white-space: nowrap;
+                font-weight: 600;
+            }
+            .result-table .area-cell {
+                white-space: nowrap;
+                font-size: 12px;
+                padding: 2px 8px;
+                border-radius: 10px;
+                display: inline-block;
+            }
+            .area-事业 {
+                background: rgba(96, 165, 250, 0.15);
+                color: var(--blue);
+            }
+            .area-感情 {
+                background: rgba(248, 113, 113, 0.15);
+                color: var(--red);
+            }
+            .area-财运 {
+                background: rgba(251, 146, 60, 0.15);
+                color: var(--orange);
+            }
+            .area-健康 {
+                background: rgba(74, 222, 128, 0.15);
+                color: var(--green);
+            }
+            .area-学业 {
+                background: rgba(124, 108, 240, 0.15);
+                color: var(--accent2);
+            }
+            .area-综合 {
+                background: rgba(153, 153, 176, 0.15);
+                color: var(--text2);
+            }
+            .empty {
+                text-align: center;
+                padding: 40px 20px;
+                color: var(--text2);
+            }
+            .empty .icon {
+                font-size: 40px;
+                margin-bottom: 12px;
+            }
+            .collapse-header {
+                cursor: pointer;
+                user-select: none;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .collapse-header .arrow {
+                transition: transform 0.2s;
+                font-size: 12px;
+            }
+            .collapse-header.open .arrow {
+                transform: rotate(90deg);
+            }
+            .collapse-body {
+                display: none;
+                margin-top: 12px;
+            }
+            .collapse-body.open {
+                display: block;
+            }
+            .prompt-preview {
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 14px;
+                font-size: 13px;
+                line-height: 1.7;
+                max-height: 300px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                color: var(--text2);
+            }
+            .stream-preview {
+                margin-top: 16px;
+                text-align: left;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 14px;
+                font-size: 13px;
+                line-height: 1.7;
+                max-height: 240px;
+                min-height: 60px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                color: var(--text2);
+                font-family:
+                    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                    monospace;
+            }
+            .stream-preview:empty {
+                display: none;
+            }
+            .settings-toggle {
+                position: fixed;
+                top: 16px;
+                right: 16px;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                color: var(--text2);
+                font-size: 18px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                transition: all 0.2s;
+            }
+            .settings-toggle:hover {
+                border-color: var(--accent);
+                color: var(--accent2);
+            }
+            .source-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 14px;
+                background: var(--surface2);
+                border-radius: 8px;
+                margin-bottom: 8px;
+                border: 1px solid var(--border);
+            }
+            .source-item .name {
+                flex: 1;
+                font-size: 14px;
+            }
+            .source-item .badge {
+                font-size: 11px;
+                padding: 2px 8px;
+                border-radius: 10px;
+                background: rgba(124, 108, 240, 0.15);
+                color: var(--accent2);
+            }
+            .source-item .remove {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                border: none;
+                background: transparent;
+                color: var(--text2);
+                cursor: pointer;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .source-item .remove:hover {
+                background: rgba(248, 113, 113, 0.15);
+                color: var(--red);
+            }
+            .tooltip {
+                position: relative;
+                cursor: help;
+            }
+            .tooltip::after {
+                content: attr(data-tip);
+                position: absolute;
+                bottom: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 6px 10px;
+                background: #333;
+                color: #fff;
+                font-size: 12px;
+                border-radius: 6px;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s;
+            }
+            .tooltip:hover::after {
+                opacity: 1;
+            }
+            .footer {
+                text-align: center;
+                padding: 24px 20px;
+                font-size: 12px;
+                color: var(--text2);
+                opacity: 0.8;
+            }
+            @media (max-width: 640px) {
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+                .header h1 {
+                    font-size: 22px;
+                }
+                .container {
+                    padding: 12px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <button
+            class="settings-toggle"
+            onclick="togglePanel(0)"
+            title="API 设置"
+        >
+            ⚙️
+        </button>
 
-<button class="settings-toggle" onclick="togglePanel(0)" title="API 设置">⚙️</button>
+        <div class="container">
+            <div class="header">
+                <h1>✨ 星座运势日历生成器</h1>
+                <p>粘贴运势文字 → AI 自动提取 → 生成结构化日历表格</p>
+            </div>
 
-<div class="container">
-  <div class="header">
-    <h1>✨ 星座运势日历生成器</h1>
-    <p>粘贴运势文字 → AI 自动提取 → 生成结构化日历表格</p>
-  </div>
+            <div class="steps">
+                <div class="step-dot active" id="sd0" onclick="goToStep(0)">
+                    1
+                </div>
+                <div class="step-dot" id="sd1" onclick="goToStep(1)">2</div>
+                <div class="step-dot" id="sd2">3</div>
+                <div class="step-dot" id="sd3" onclick="goToStep(3)">4</div>
+            </div>
 
-  <div class="steps">
-    <div class="step-dot active" id="sd0" onclick="goToStep(0)">1</div>
-    <div class="step-dot" id="sd1" onclick="goToStep(1)">2</div>
-    <div class="step-dot" id="sd2">3</div>
-    <div class="step-dot" id="sd3" onclick="goToStep(3)">4</div>
-  </div>
+            <!-- Step 0: API Config -->
+            <div class="panel visible" id="p0">
+                <div class="panel-title">
+                    <span class="icon">⚙️</span> API 设置
+                </div>
 
-  <!-- Step 0: API Config -->
-  <div class="panel visible" id="p0">
-    <div class="panel-title"><span class="icon">⚙️</span> API 设置</div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            id="useCfAI"
+                            onchange="toggleCfAI()"
+                        />
+                        <span
+                            >使用 Cloudflare Workers AI（无需 API
+                            Key，每天有免费额度）</span
+                        >
+                    </label>
+                    <div class="form-hint">
+                        部署到 Cloudflare Pages 后可用，模型可自选
+                    </div>
+                </div>
 
-    <div class="form-group">
-      <label class="checkbox-label">
-        <input type="checkbox" id="useCfAI" onchange="toggleCfAI()" />
-        <span>使用 Cloudflare Workers AI（无需 API Key，每天有免费额度）</span>
-      </label>
-      <div class="form-hint">部署到 Cloudflare Pages 后可用，模型可自选</div>
-    </div>
+                <div class="form-group" id="cfModelField" style="display: none">
+                    <label>Workers AI 模型</label>
+                    <select id="cfModelName">
+                        <option value="@cf/zai-org/glm-4.7-flash" selected>
+                            glm-4.7-flash
+                        </option>
+                        <option value="@cf/qwen/qwen3-30b-a3b-fp8">
+                            qwen3-30b-a3b-fp8
+                        </option>
+                        <option value="@cf/qwen/qwen2.5-coder-32b-instruct">
+                            qwen2.5-coder-32b-instruct
+                        </option>
+                        <option value="@cf/moonshotai/kimi-k2.6">
+                            kimi-k2.6
+                        </option>
+                        <option value="@cf/moonshotai/kimi-k2.7-code">
+                            kimi-k2.7-code
+                        </option>
+                        <option value="@cf/meta/llama-3.3-70b-instruct-fp8-fast">
+                            llama-3.3-70b-instruct-fp8-fast
+                        </option>
+                    </select>
+                    <div class="form-hint">推荐模型</div>
+                </div>
 
-    <div class="form-group" id="cfModelField" style="display:none;">
-      <label>Workers AI 模型</label>
-      <input type="text" id="cfModelName" placeholder="@cf/zai-org/glm-4.7-flash" />
-      <div class="form-hint">如 @cf/meta/llama-3.3-70b-instruct-fp8-fast、@cf/qwen/qwen-2.5-32b-instruct</div>
-    </div>
+                <div
+                    class="form-group"
+                    id="thinkingField"
+                    style="display: none"
+                >
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="enableThinking" />
+                        <span>启用 thinking / 推理模式</span>
+                    </label>
+                    <div class="form-hint">默认关闭，不稳定</div>
+                </div>
 
-    <div class="form-group" id="thinkingField" style="display:none;">
-      <label class="checkbox-label">
-        <input type="checkbox" id="enableThinking" />
-        <span>启用 thinking / 推理模式</span>
-      </label>
-      <div class="form-hint">默认关闭，可避免 GLM-4.7-Flash 等推理模型把输出 token 全部用于思考而返回空内容</div>
-    </div>
+                <div id="customApiFields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>API URL</label>
+                            <input
+                                type="text"
+                                id="apiBase"
+                                placeholder=""
+                            />
+                            <div class="form-hint">
+                                OpenAI 兼容接口地址，如
+                                <a href="#" onclick="fillExample('openai')"
+                                    >OpenAI</a
+                                >
+                                /
+                                <a href="#" onclick="fillExample('deepseek')"
+                                    >DeepSeek</a
+                                >
+                                /
+                                <a href="#" onclick="fillExample('openrouter')"
+                                    >OpenRouter</a
+                                >
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input
+                                type="password"
+                                id="apiKey"
+                                placeholder="sk-..."
+                            />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input
+                            type="text"
+                            id="modelName"
+                            placeholder="gpt-4o-mini"
+                        />
+                        <div class="form-hint">
+                            如 gpt-4o / deepseek-chat / qwen-plus 等
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button
+                        class="btn btn-primary btn-sm"
+                        onclick="saveAndNext()"
+                    >
+                        保存并继续 →
+                    </button>
+                </div>
+                <div class="status-bar" id="apiStatus"></div>
+            </div>
 
-    <div id="customApiFields">
-      <div class="form-row">
-        <div class="form-group">
-          <label>API 地址</label>
-          <input type="text" id="apiBase" placeholder="https://api.openai.com/v1" />
-          <div class="form-hint">OpenAI 兼容接口地址，如
-            <a href="#" onclick="fillExample('openai')">OpenAI</a> /
-            <a href="#" onclick="fillExample('deepseek')">DeepSeek</a> /
-            <a href="#" onclick="fillExample('openrouter')">OpenRouter</a>
-          </div>
+            <!-- Step 1: Input -->
+            <div class="panel" id="p1">
+                <div class="panel-title">
+                    <span class="icon">📋</span> 输入运势内容
+                </div>
+                <div class="form-group">
+                    <label>选择关注的星座（不选则全部提取）</label>
+                    <div class="tag-row" id="signTags"></div>
+                </div>
+                <div class="form-group">
+                    <label>粘贴文章链接（每行一个，自动通过代理抓取）</label>
+                    <textarea
+                        id="inputLinks"
+                        style="min-height: 80px"
+                        placeholder="https://mp.weixin.qq.com/s/...&#10;https://www.xiaohongshu.com/..."
+                    ></textarea>
+                    <div class="btn-row" style="margin-top: 8px">
+                        <button
+                            class="btn btn-secondary btn-sm"
+                            id="fetchBtn"
+                            onclick="fetchLinks()"
+                        >
+                            🔗 抓取链接内容
+                        </button>
+                    </div>
+                    <div class="form-hint" style="margin-top: 6px">
+                        公众号等需要登录的页面可能无法自动抓取，届时请手动复制文字粘贴到下方
+                    </div>
+                    <div id="fetchLog" style="margin-top: 8px"></div>
+                </div>
+                <div class="form-group">
+                    <label
+                        >运势文字内容（链接抓取的内容会自动填入，也可手动粘贴）</label
+                    >
+                    <textarea
+                        id="inputText"
+                        placeholder="链接抓取后内容会出现在这里...&#10;也可以直接粘贴文字内容"
+                    ></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="collapse-header" onclick="toggleCollapse(this)">
+                        <span class="arrow">▶</span>
+                        <span style="font-size: 14px; color: var(--text2)"
+                            >提示词（点击展开编辑，AI
+                            会自动判断时间段和来源）</span
+                        >
+                    </div>
+                    <div class="collapse-body">
+                        <textarea
+                            id="customPrompt"
+                            style="min-height: 200px; font-size: 13px"
+                            placeholder="自定义提示词将覆盖默认模板..."
+                        ></textarea>
+                        <div class="form-hint">
+                            留空则使用默认提示词。可用 {text}
+                            表示运势内容，{signs} 表示选中的星座。
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="clearInput()"
+                    >
+                        清空
+                    </button>
+                    <button
+                        class="btn btn-primary"
+                        id="startExtractBtn"
+                        onclick="startExtract()"
+                    >
+                        🚀 开始处理
+                    </button>
+                </div>
+                <div class="status-bar" id="extractStatus"></div>
+            </div>
+
+            <!-- Step 2: Processing -->
+            <div class="panel" id="p2">
+                <div class="panel-title">
+                    <span class="icon">🤖</span> AI 提取中
+                </div>
+                <div class="empty" id="processingState">
+                    <div
+                        class="spinner"
+                        style="
+                            width: 32px;
+                            height: 32px;
+                            margin: 0 auto 16px;
+                            border-width: 3px;
+                        "
+                    ></div>
+                    <p id="progressText">正在连接 AI...</p>
+                    <div class="stream-preview" id="streamPreview"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Result -->
+            <div class="panel" id="p3">
+                <div class="panel-title">
+                    <span class="icon">📊</span> 提取结果
+                </div>
+                <div class="btn-row" style="margin-bottom: 16px">
+                    <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="exportCSV()"
+                    >
+                        📥 导出 CSV
+                    </button>
+                    <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="exportJSON()"
+                    >
+                        📥 导出 JSON
+                    </button>
+                    <button
+                        class="btn btn-secondary btn-sm"
+                        onclick="copyMarkdown()"
+                    >
+                        📋 复制 Markdown
+                    </button>
+                </div>
+                <div class="status-bar" id="resultStatus"></div>
+                <div class="result-wrap" id="resultWrap">
+                    <div class="empty">
+                        <div class="icon">📭</div>
+                        <p>暂无数据</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prompt Preview -->
+            <div class="panel" id="pPrompt" style="margin-top: 20px">
+                <div class="collapse-header" onclick="toggleCollapse(this)">
+                    <span class="arrow">▶</span>
+                    <span style="font-size: 14px; color: var(--text2)"
+                        >查看发送给 AI 的提示词</span
+                    >
+                </div>
+                <div class="collapse-body">
+                    <div class="prompt-preview" id="promptPreview"></div>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-          <label>API Key</label>
-          <input type="password" id="apiKey" placeholder="sk-..." />
-        </div>
-      </div>
-      <div class="form-group">
-        <label>模型名称</label>
-        <input type="text" id="modelName" placeholder="gpt-4o-mini" />
-        <div class="form-hint">如 gpt-4o / deepseek-chat / qwen-plus 等</div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-primary btn-sm" onclick="saveAndNext()">保存并继续 →</button>
-    </div>
-    <div class="status-bar" id="apiStatus"></div>
-  </div>
-
-  <!-- Step 1: Input -->
-  <div class="panel" id="p1">
-    <div class="panel-title"><span class="icon">📋</span> 输入运势内容</div>
-    <div class="form-group">
-      <label>选择关注的星座（不选则全部提取）</label>
-      <div class="tag-row" id="signTags"></div>
-    </div>
-    <div class="form-group">
-      <label>粘贴文章链接（每行一个，自动通过 CORS 代理抓取）</label>
-      <textarea id="inputLinks" style="min-height:80px;" placeholder="https://mp.weixin.qq.com/s/...&#10;https://www.xiaohongshu.com/..."></textarea>
-      <div class="btn-row" style="margin-top:8px;">
-        <button class="btn btn-secondary btn-sm" id="fetchBtn" onclick="fetchLinks()">🔗 抓取链接内容</button>
-      </div>
-      <div class="form-hint" style="margin-top:6px;">公众号等需要登录的页面可能无法自动抓取，届时请手动复制文字粘贴到下方</div>
-      <div id="fetchLog" style="margin-top:8px;"></div>
-    </div>
-    <div class="form-group">
-      <label>运势文字内容（链接抓取的内容会自动填入，也可手动粘贴）</label>
-      <textarea id="inputText" placeholder="链接抓取后内容会出现在这里...&#10;也可以直接粘贴文字内容"></textarea>
-    </div>
-    <div class="form-group">
-      <div class="collapse-header" onclick="toggleCollapse(this)">
-        <span class="arrow">▶</span>
-        <span style="font-size:14px;color:var(--text2);">提示词（点击展开编辑，AI 会自动判断时间段和来源）</span>
-      </div>
-      <div class="collapse-body">
-        <textarea id="customPrompt" style="min-height:200px;font-size:13px;" placeholder="自定义提示词将覆盖默认模板..."></textarea>
-        <div class="form-hint">留空则使用默认提示词。可用 {text} 表示运势内容，{signs} 表示选中的星座。</div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-secondary btn-sm" onclick="clearInput()">清空</button>
-      <button class="btn btn-primary" id="startExtractBtn" onclick="startExtract()">🚀 开始处理</button>
-    </div>
-    <div class="status-bar" id="extractStatus"></div>
-  </div>
-
-  <!-- Step 2: Processing -->
-  <div class="panel" id="p2">
-    <div class="panel-title"><span class="icon">🤖</span> AI 提取中</div>
-    <div class="empty" id="processingState">
-      <div class="spinner" style="width:32px;height:32px;margin:0 auto 16px;border-width:3px;"></div>
-      <p id="progressText">正在连接 AI...</p>
-      <div class="stream-preview" id="streamPreview"></div>
-    </div>
-  </div>
-
-  <!-- Step 3: Result -->
-  <div class="panel" id="p3">
-    <div class="panel-title"><span class="icon">📊</span> 提取结果</div>
-    <div class="btn-row" style="margin-bottom:16px;">
-      <button class="btn btn-secondary btn-sm" onclick="exportCSV()">📥 导出 CSV</button>
-      <button class="btn btn-secondary btn-sm" onclick="exportJSON()">📥 导出 JSON</button>
-      <button class="btn btn-secondary btn-sm" onclick="copyMarkdown()">📋 复制 Markdown</button>
-    </div>
-    <div class="status-bar" id="resultStatus"></div>
-    <div class="result-wrap" id="resultWrap">
-      <div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>
-    </div>
-  </div>
-
-  <!-- Prompt Preview -->
-  <div class="panel" id="pPrompt" style="margin-top: 20px;">
-    <div class="collapse-header" onclick="toggleCollapse(this)">
-      <span class="arrow">▶</span>
-      <span style="font-size:14px;color:var(--text2);">查看发送给 AI 的提示词</span>
-    </div>
-    <div class="collapse-body">
-      <div class="prompt-preview" id="promptPreview"></div>
-    </div>
-  </div>
-</div>
-
-<footer class="footer">202606161701</footer>
-
-<script src="public/utils.js"></script>
-<script>
-let currentPanel = 0;
-let allResults = [];
-let lastPrompt = '';
-
-function stripHtml(html) {
-  // 使用 DOMParser 解析并提取纯文本，能更彻底地移除 script/style/iframe/svg 等
-  // 以及内联事件处理、隐藏元素等现代网页常见噪音。
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  // 移除不应出现在正文中的标签和隐藏元素
-  const noiseSelectors = [
-    'script',
-    'style',
-    'noscript',
-    'iframe',
-    'svg',
-    'canvas',
-    'template',
-    'link',
-    'meta',
-    'head',
-    'nav[role="navigation"]',
-    'header',
-    'footer',
-    '[hidden]',
-    '[style*="display:none" i]',
-    '[style*="display: none" i]',
-  ].join(', ');
-  doc.querySelectorAll(noiseSelectors).forEach(el => el.remove());
-
-  // 优先取 body 文本；若解析失败则降级为整文档文本
-  const root = doc.body || doc.documentElement;
-  let text = root.innerText || root.textContent || '';
-
-  // 解码常见 HTML 实体并规范化空白
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  text = textarea.value;
-
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-async function fetchUrlViaProxy(url) {
-  // 1. Prefer same-origin backend proxy (Cloudflare Pages Functions)
-  try {
-    const r = await fetch('/api/fetch?url=' + encodeURIComponent(url), {
-      signal: AbortSignal.timeout(20000),
-    });
-    if (r.ok) {
-      const html = await r.text();
-      const text = stripHtml(html);
-      if (text.length > 20) return text;
-    } else if (r.status !== 404) {
-      // Proxy exists but target failed
-      const err = await r.json().catch(() => ({}));
-      throw new Error(err.error || '代理抓取失败 (' + r.status + ')');
-    }
-    // 404 means no local proxy; fall through to public CORS proxies
-  } catch (e) {
-    if (e.message && e.message.includes('代理抓取失败')) throw e;
-    // Otherwise (network error / 404) continue with public proxies
-  }
-
-  // 2. Fallback: public CORS proxies (for local file:// preview without backend)
-  for (const makeUrl of CORS_PROXIES) {
-    try {
-      const r = await fetch(makeUrl(url), { signal: AbortSignal.timeout(15000) });
-      if (r.ok) {
-        const html = await r.text();
-        const text = stripHtml(html);
-        if (text.length > 20) return text;
-      }
-    } catch (_) { continue; }
-  }
-  throw new Error('无法抓取此链接（微信公众号等需要登录的页面不支持自动抓取），请手动复制文字内容粘贴');
-}
-
-// ─── Init ───
-window.addEventListener('DOMContentLoaded', () => {
-  const saved = JSON.parse(localStorage.getItem('hc_config') || '{}');
-  document.getElementById('useCfAI').checked = !!saved.useCfAI;
-  if (saved.apiBase) document.getElementById('apiBase').value = saved.apiBase;
-  if (saved.apiKey) document.getElementById('apiKey').value = saved.apiKey;
-  if (saved.modelName && !saved.useCfAI) document.getElementById('modelName').value = saved.modelName;
-  if (saved.cfModelName && saved.useCfAI) document.getElementById('cfModelName').value = saved.cfModelName;
-  document.getElementById('enableThinking').checked = !!saved.enableThinking;
-  toggleCfAI();
-  if ((saved.useCfAI || (saved.apiBase && saved.apiKey))) togglePanel(1);
-
-  const tagRow = document.getElementById('signTags');
-  SIGNS.forEach(s => {
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = s;
-    tag.onclick = () => tag.classList.toggle('selected');
-    tagRow.appendChild(tag);
-  });
-
-  const promptArea = document.getElementById('customPrompt');
-  if (!promptArea.value.trim()) promptArea.value = DEFAULT_PROMPT_TEMPLATE;
-});
-
-// ─── Panel navigation ───
-function togglePanel(idx) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('visible'));
-  document.getElementById('p' + idx).classList.add('visible');
-  currentPanel = idx;
-  updateSteps();
-}
-function updateSteps() {
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('sd' + i);
-    dot.className = 'step-dot' + (i < currentPanel ? ' done' : i === currentPanel ? ' active' : '');
-    if (i < currentPanel) dot.textContent = '✓';
-    else dot.textContent = i + 1;
-  }
-}
-
-function goToStep(idx) {
-  if (idx === currentPanel) return;
-  if (idx === 2) return; // processing step is not navigable
-  if (idx === 3 && !allResults.length) {
-    showStatus('extractStatus', '⚠️ 还没有提取结果，无法查看结果页', 'warning');
-    return;
-  }
-  togglePanel(idx);
-}
-
-// ─── Config ───
-function fillExample(provider) {
-  const examples = {
-    deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-    openrouter: { base: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
-    openai: { base: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  };
-  const ex = examples[provider];
-  if (ex) {
-    document.getElementById('apiBase').value = ex.base;
-    document.getElementById('modelName').value = ex.model;
-  }
-}
-
-function toggleCfAI() {
-  const useCfAI = document.getElementById('useCfAI').checked;
-  const customFields = document.getElementById('customApiFields');
-  const cfModelField = document.getElementById('cfModelField');
-  const thinkingField = document.getElementById('thinkingField');
-  if (customFields) {
-    customFields.style.display = useCfAI ? 'none' : 'block';
-  }
-  if (cfModelField) {
-    cfModelField.style.display = useCfAI ? 'block' : 'none';
-  }
-  if (thinkingField) {
-    thinkingField.style.display = useCfAI ? 'block' : 'none';
-  }
-}
-
-function getConfig() {
-  const useCfAI = document.getElementById('useCfAI').checked;
-  const cfModelName = document.getElementById('cfModelName').value.trim() || '@cf/zai-org/glm-4.7-flash';
-  const enableThinking = document.getElementById('enableThinking').checked;
-  if (useCfAI) {
-    return {
-      useCfAI: true,
-      apiBase: '/api/chat',
-      apiKey: '',
-      modelName: cfModelName,
-      cfModelName: cfModelName,
-      enableThinking: enableThinking,
-    };
-  }
-  return {
-    useCfAI: false,
-    apiBase: document.getElementById('apiBase').value.trim().replace(/\/+$/, ''),
-    apiKey: document.getElementById('apiKey').value.trim(),
-    modelName: document.getElementById('modelName').value.trim() || 'gpt-4o-mini',
-    cfModelName: cfModelName,
-    enableThinking: enableThinking,
-  };
-}
-
-function saveConfig() {
-  const cfg = getConfig();
-  localStorage.setItem('hc_config', JSON.stringify(cfg));
-  return cfg;
-}
-
-async function saveAndNext() {
-  const cfg = saveConfig();
-  if (cfg.useCfAI) {
-    const cfInput = document.getElementById('cfModelName');
-    const modelWasEmpty = cfInput && !cfInput.value.trim();
-    if (modelWasEmpty) {
-      cfInput.value = '@cf/zai-org/glm-4.7-flash';
-      saveConfig();
-    }
-
-    const DEFAULT_CF_MODEL = '@cf/zai-org/glm-4.7-flash';
-    const testModel = getConfig().modelName;
-
-    async function testCfModel(model) {
-      const cfg = getConfig();
-      const resp = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5, stream: false, enableThinking: cfg.enableThinking }),
-      });
-      if (!resp.ok) return { ok: false, status: resp.status, content: '' };
-      const data = await resp.json().catch(() => ({}));
-      const content = data.choices?.[0]?.message?.content || data.response || '';
-      return { ok: true, content: content.trim() };
-    }
-
-    showStatus('apiStatus', '正在测试 Cloudflare AI...', 'info');
-    try {
-      let result = await testCfModel(testModel);
-
-      // 如果用户填了其他模型但返回为空，自动回退到默认模型再试一次
-      if (result.ok && !result.content && testModel !== DEFAULT_CF_MODEL) {
-        showStatus('apiStatus', '正在回退到默认模型...', 'info');
-        cfInput.value = DEFAULT_CF_MODEL;
-        saveConfig();
-        result = await testCfModel(DEFAULT_CF_MODEL);
-      }
-
-      if (!result.ok) {
-        showStatus('apiStatus', '❌ Cloudflare AI 测试失败 (' + result.status + ')', 'error');
-        return;
-      }
-
-      if (result.content) {
-        showStatus('apiStatus', '✅ Cloudflare AI 可用！', 'success');
-        setTimeout(() => togglePanel(1), 400);
-      } else if (modelWasEmpty) {
-        showStatus('apiStatus', '✅ 未填写模型，已默认使用 ' + DEFAULT_CF_MODEL + '，可以继续使用', 'success');
-        setTimeout(() => togglePanel(1), 400);
-      } else {
-        showStatus('apiStatus', '⚠️ Cloudflare AI 连接成功，但模型返回为空。可能是当前模型在该账号/区域不可用，请尝试更换模型或稍后重试。', 'warning');
-      }
-    } catch (e) {
-      showStatus('apiStatus', '❌ Cloudflare AI 不可用，请确认已部署到 Pages: ' + e.message, 'error');
-    }
-    return;
-  }
-  if (!cfg.apiBase || !cfg.apiKey) return showStatus('apiStatus', '请填写 API 地址和 Key', 'warning');
-  showStatus('apiStatus', '正在测试连接...', 'info');
-  try {
-    const resp = await fetch(cfg.apiBase + '/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.apiKey,
-      },
-      body: JSON.stringify({ model: cfg.modelName, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5, stream: false }),
-    });
-    if (resp.ok) {
-      const data = await resp.json().catch(() => null);
-      const content = data?.choices?.[0]?.message?.content || '';
-      if (content.trim()) {
-        showStatus('apiStatus', '✅ 连接成功！', 'success');
-        setTimeout(() => togglePanel(1), 400);
-      } else {
-        showStatus('apiStatus', '⚠️ 连接成功，但 API 返回内容为空，请检查模型名称是否正确', 'warning');
-      }
-    } else {
-      const err = await resp.text();
-      showStatus('apiStatus', '❌ 请求失败 (' + resp.status + '): ' + err.slice(0, 200), 'error');
-    }
-  } catch (e) {
-    showStatus('apiStatus', '❌ 网络错误: ' + e.message + '（如遇 CORS 限制，可改用 OpenRouter 等支持浏览器直接调用的 API）', 'error');
-  }
-}
-
-// ─── Input helpers ───
-function clearInput() {
-  document.getElementById('inputText').value = '';
-  document.getElementById('inputLinks').value = '';
-  document.getElementById('fetchLog').innerHTML = '';
-  document.getElementById('customPrompt').value = DEFAULT_PROMPT_TEMPLATE;
-}
-
-function getSelectedSigns() {
-  return [...document.querySelectorAll('#signTags .tag.selected')].map(t => t.textContent);
-}
-
-// ─── Fetch links ───
-async function fetchLinks() {
-  const raw = document.getElementById('inputLinks').value.trim();
-  if (!raw) return;
-  const urls = raw.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
-  if (!urls.length) return;
-
-  const btn = document.getElementById('fetchBtn');
-  const log = document.getElementById('fetchLog');
-  const textArea = document.getElementById('inputText');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 抓取中...';
-  log.innerHTML = '';
-  const existing = textArea.value.trim();
-  const parts = existing ? [existing] : [];
-
-  for (let i = 0; i < urls.length; i++) {
-    const url = urls[i];
-    const shortUrl = url.length > 60 ? url.slice(0, 60) + '...' : url;
-    const logEntry = document.createElement('div');
-    logEntry.style.cssText = 'font-size:12px;color:var(--text2);margin-bottom:4px;';
-    logEntry.textContent = '⏳ 正在抓取 ' + shortUrl;
-    log.appendChild(logEntry);
-
-    try {
-      const text = await fetchUrlViaProxy(url);
-      parts.push('\n\n── 来源: ' + url + ' ──\n\n' + text);
-      logEntry.textContent = '✅ ' + shortUrl + '（' + text.length + ' 字）';
-      logEntry.style.color = 'var(--green)';
-    } catch (e) {
-      logEntry.textContent = '❌ ' + shortUrl + ': ' + e.message;
-      logEntry.style.color = 'var(--red)';
-    }
-  }
-
-  textArea.value = parts.join('');
-  btn.disabled = false;
-  btn.innerHTML = '🔗 抓取链接内容';
-}
-
-// ─── Build prompt ───
-function buildPrompt(text, selectedSigns) {
-  const signFilter = selectedSigns.length > 0 ? selectedSigns.join('、') : '所有星座';
-  const custom = document.getElementById('customPrompt').value.trim();
-  let prompt;
-  if (custom) {
-    prompt = custom.replace(/\{text\}/g, text).replace(/\{signs\}/g, signFilter);
-  } else {
-    prompt = DEFAULT_PROMPT_TEMPLATE.replace(/\{text\}/g, text).replace(/\{signs\}/g, signFilter);
-  }
-  lastPrompt = prompt;
-  document.getElementById('promptPreview').textContent = prompt;
-  return prompt;
-}
-
-// ─── Call AI with streaming ───
-async function callAI(prompt, onStreamChunk, options = {}) {
-  const cfg = getConfig();
-  const systemMessage = options.system || '你是一位专业的星座运势整理师。你的输出必须是合法、可解析的 JSON 数组。确保所有属性名用双引号包裹，属性名后有冒号，属性之间有逗号，最后一个属性后没有逗号。不要输出 markdown 代码块或任何解释文字。';
-  const messages = [
-    { role: 'system', content: systemMessage },
-    { role: 'user', content: prompt }
-  ];
-  const contextWindow = getContextWindow(cfg.modelName);
-  const { result: truncatedMsgs, truncated } = truncateMessages(messages, contextWindow);
-
-  const isCfAI = cfg.useCfAI;
-  const url = isCfAI ? '/api/chat' : cfg.apiBase + '/chat/completions';
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
-  };
-  if (!isCfAI) headers['Authorization'] = 'Bearer ' + cfg.apiKey;
-
-  // 防止请求无限挂起：首字节 120s、整体 300s 超时
-  // Cloudflare Workers AI 等模型冷启动或长输出时，首字节可能较慢
-  const abortCtrl = new AbortController();
-  let timeoutType = '';
-  const totalTimer = setTimeout(() => { timeoutType = 'total'; abortCtrl.abort(); }, 300000);
-  const firstByteTimer = setTimeout(() => { timeoutType = 'firstByte'; abortCtrl.abort(); }, 120000);
-  let timersCleared = false;
-  function clearAiTimers() {
-    if (timersCleared) return;
-    timersCleared = true;
-    clearTimeout(totalTimer);
-    clearTimeout(firstByteTimer);
-  }
-
-  // 长时间未开始输出时给用户提示
-  const progressText = document.getElementById('progressText');
-  let statusTimer = null;
-  if (progressText && progressText.textContent === '正在连接 AI...') {
-    statusTimer = setTimeout(() => {
-      if (progressText) progressText.textContent = 'AI 响应较慢，仍在连接中，请稍候...';
-    }, 5000);
-  }
-  function clearStatusTimer() {
-    if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
-  }
-
-  let resp;
-  try {
-    resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      signal: abortCtrl.signal,
-      body: JSON.stringify({
-        model: cfg.modelName,
-        messages: truncatedMsgs,
-        temperature: 0.3,
-        max_tokens: 8192,
-        stream: true,
-        ...(cfg.useCfAI ? { enableThinking: cfg.enableThinking } : {}),
-      }),
-    });
-  } catch (e) {
-    clearAiTimers();
-    clearStatusTimer();
-    if (e.name === 'AbortError') {
-      if (timeoutType === 'firstByte') {
-        throw new Error('AI 在 120 秒内未开始返回数据，请求已中断。请检查网络、模型可用性或稍后重试。');
-      }
-      throw new Error('AI 请求超时（超过 300 秒未完成），已中断。请稍后重试或换用其他模型。');
-    }
-    throw e;
-  }
-
-  if (!resp.ok) {
-    clearAiTimers();
-    clearStatusTimer();
-    const errText = await resp.text();
-    if (errText.includes('context_length') || errText.includes('maximum context')) {
-      throw new Error('上下文长度超限（模型窗口: ' + contextWindow + ' tokens）。请缩短输入内容或换用更大窗口的模型。');
-    }
-    throw new Error('API 错误 (' + resp.status + '): ' + errText.slice(0, 300));
-  }
-
-  // Fallback for APIs that ignore stream: true and return regular JSON
-  const contentType = resp.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    clearAiTimers();
-    clearStatusTimer();
-    const data = await resp.json();
-    if (data.error) throw new Error(data.error.message || data.error);
-    if (!data.choices || !data.choices.length) throw new Error('API 返回格式异常：缺少 choices 字段');
-    const content = data.choices[0].message?.content;
-    if (content === null || content === undefined) throw new Error('API 返回内容为空。若使用推理模型，请检查是否已关闭 thinking 模式。');
-    if (onStreamChunk && content) onStreamChunk(content, content);
-    return content;
-  }
-
-  // Streaming SSE parse
-  const reader = resp.body.getReader();
-  const decoder = new TextDecoder();
-  let fullContent = '';
-  let buffer = '';
-  let firstChunkReceived = false;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      if (!firstChunkReceived) {
-        firstChunkReceived = true;
-        clearAiTimers();
-        clearStatusTimer();
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
-        const data = trimmed.slice(6);
-        if (data === '[DONE]') continue;
-
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.error) throw new Error(parsed.error.message || parsed.error);
-          const delta = parsed.choices?.[0]?.delta?.content || '';
-          if (delta) {
-            fullContent += delta;
-            if (onStreamChunk) onStreamChunk(fullContent, delta);
-          }
-        } catch (e) {
-          if (e.message && !e.message.startsWith('Unexpected token')) throw e;
-        }
-      }
-    }
-
-    // Flush remaining buffer
-    if (buffer.trim()) {
-      const trimmed = buffer.trim();
-      if (trimmed.startsWith('data: ') && trimmed.slice(6) !== '[DONE]') {
-        try {
-          const parsed = JSON.parse(trimmed.slice(6));
-          const delta = parsed.choices?.[0]?.delta?.content || '';
-          if (delta) fullContent += delta;
-        } catch (_) {}
-      }
-    }
-  } catch (e) {
-    clearAiTimers();
-    clearStatusTimer();
-    if (e.name === 'AbortError') {
-      throw new Error('AI 请求超时（流式读取中断），请稍后重试。');
-    }
-    throw e;
-  }
-
-  clearAiTimers();
-  clearStatusTimer();
-  if (!fullContent) throw new Error('AI 返回内容为空。若使用 GLM-4.7-Flash / Kimi / GPT-OSS 等推理模型，请检查是否已关闭 thinking 模式或降低 reasoning_effort。');
-  return fullContent;
-}
-
-async function parseExtractedJson(raw) {
-  const jsonStr = extractJsonStr(raw);
-  try {
-    return JSON.parse(jsonStr);
-  } catch (parseErr) {
-    // 1. 尝试截断到最后一个完整记录（处理末尾被截断的情况）
-    try {
-      const truncated = truncateToLastValidRecord(jsonStr);
-      const results = JSON.parse(truncated);
-      results._truncated = true;
-      return results;
-    } catch {}
-
-    // 2. 尝试自动修复常见 LLM JSON 错误（缺失冒号/逗号等）
-    try {
-      return JSON.parse(repairJson(jsonStr));
-    } catch {}
-
-    // 兜底：让 AI 自己修复（不流式，避免干扰进度）
-    try {
-      const repairPrompt = '请修正以下 JSON，使其成为合法的 JSON 数组。只输出修正后的 JSON，不要输出任何解释文字、markdown 代码块或其他内容：\n\n' + jsonStr;
-      const fixedRaw = await callAI(repairPrompt, null, { system: '你是一个 JSON 修复专家。只输出合法 JSON，不要任何解释。' });
-      const fixedStr = extractJsonStr(fixedRaw);
-      try {
-        return JSON.parse(fixedStr);
-      } catch {
-        return JSON.parse(repairJson(fixedStr));
-      }
-    } catch {
-      throw new Error('JSON 解析失败: ' + parseErr.message);
-    }
-  }
-}
-
-// ─── Extract ───
-async function startExtract() {
-  const cfg = getConfig();
-  if (!cfg.useCfAI && (!cfg.apiBase || !cfg.apiKey)) {
-    showStatus('extractStatus', '请先在右上角 ⚙️ 设置 API', 'warning');
-    return;
-  }
-  saveConfig();
-
-  const text = document.getElementById('inputText').value.trim();
-  if (!text) return showStatus('extractStatus', '请粘贴运势文字内容', 'warning');
-
-  if (text.length > 15000) {
-    showStatus('extractStatus', '⚠️ 内容较长（' + text.length + '字），处理可能需要更长时间', 'warning');
-  }
-
-  const selectedSigns = getSelectedSigns();
-  const prompt = buildPrompt(text, selectedSigns);
-
-  const startBtn = document.getElementById('startExtractBtn');
-  if (startBtn) startBtn.disabled = true;
-
-  togglePanel(2);
-  const progressText = document.getElementById('progressText');
-  const streamPreview = document.getElementById('streamPreview');
-  progressText.textContent = '正在连接 AI...';
-  if (streamPreview) streamPreview.textContent = '';
-
-  try {
-    const raw = await callAI(prompt, (full, delta) => {
-      progressText.textContent = 'AI 正在输出...（已接收 ' + full.length + ' 字）';
-      if (streamPreview) {
-        streamPreview.textContent = full.slice(-1200);
-        streamPreview.scrollTop = streamPreview.scrollHeight;
-      }
-    });
-
-    if (!raw || typeof raw !== 'string') {
-      showStatus('extractStatus', '⚠️ AI 返回内容为空，请检查 API 或重试', 'error');
-      togglePanel(1);
-      return;
-    }
-
-    progressText.textContent = '正在解析结果...';
-    let results;
-    let truncated = false;
-    try {
-      results = await parseExtractedJson(raw);
-      if (!Array.isArray(results)) throw new Error('返回的不是 JSON 数组');
-      if (results.length === 0) {
-        showStatus('extractStatus', '⚠️ AI 未提取到任何记录', 'warning');
-        togglePanel(1);
-        return;
-      }
-      if (results._truncated) {
-        truncated = true;
-        delete results._truncated;
-      }
-    } catch (e) {
-      showStatus('extractStatus', '⚠️ AI 返回格式异常: ' + e.message, 'error');
-      console.error('Raw AI response:', raw);
-      togglePanel(1);
-      return;
-    }
-
-    const { year: defaultYear, month: defaultMonth } = inferYearMonth(text);
-    results = results.map(r => {
-      const rawDate = String(r.date || '').trim();
-      const rawPeriod = String(r.period || rawDate || '').trim();
-      const normalizedDate = normalizeDate(rawDate, defaultYear, defaultMonth);
-      return {
-        date: normalizedDate,
-        period: rawPeriod || normalizedDate,
-        sign: r.sign || '未知',
-        area: r.area || '综合',
-        keyword: r.keyword || '',
-        detail: r.detail || '',
-        note: r.note || '',
-        source: r.source || '未知',
-      };
-    }).filter(r => r.date !== '' && /^\d{4}-\d{2}-\d{2}$/.test(r.date));
-
-    if (results.length === 0) {
-      showStatus('extractStatus', '⚠️ AI 返回的记录均缺少日期，请检查提示词或输入内容', 'warning');
-      togglePanel(1);
-      return;
-    }
-
-    allResults = allResults.concat(results);
-    renderTable(allResults);
-    togglePanel(3);
-    const msg = '✅ 成功提取 ' + results.length + ' 条记录（累计 ' + allResults.length + ' 条）';
-    showStatus('resultStatus', truncated ? '⚠️ ' + results.length + ' 条记录已保留，但 AI 输出在末尾被截断，未完成的记录已丢弃。建议减少同时处理的星座数量或缩短输入内容。' : msg, truncated ? 'warning' : 'success');
-    document.getElementById('pPrompt').style.display = 'block';
-  } catch (e) {
-    showStatus('extractStatus', '❌ ' + e.message, 'error');
-    togglePanel(1);
-  } finally {
-    if (startBtn) startBtn.disabled = false;
-  }
-}
-
-// ─── Render ───
-function renderTable(data) {
-  const wrap = document.getElementById('resultWrap');
-  if (!data.length) {
-    wrap.innerHTML = '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>';
-    return;
-  }
-  data.sort((a, b) => {
-    if (a.date && b.date) return a.date.localeCompare(b.date);
-    if (a.date) return -1;
-    if (b.date) return 1;
-    return SIGNS.indexOf(a.sign) - SIGNS.indexOf(b.sign);
-  });
-  let html = '<table class="result-table"><thead><tr><th>日期</th><th>星座</th><th>领域</th><th>关键词</th><th>详细描述</th><th>注意事项</th><th>来源</th></tr></thead><tbody>';
-  data.forEach(r => {
-    const areaClass = AREA_COLORS[r.area] || 'area-综合';
-    html += '<tr><td class="date-cell">' + (r.date || '—') + '</td><td class="sign-cell">' + escapeHtml(r.sign) + '</td><td><span class="area-cell ' + areaClass + '">' + escapeHtml(r.area) + '</span></td><td>' + escapeHtml(r.keyword) + '</td><td>' + escapeHtml(r.detail) + '</td><td>' + escapeHtml(r.note) + '</td><td style="white-space:nowrap;color:var(--text2);font-size:12px;">' + escapeHtml(r.source) + '</td></tr>';
-  });
-  html += '</tbody></table>';
-  wrap.innerHTML = html;
-}
-
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
-}
-
-// ─── Export ───
-function escapeCsv(value) {
-  const s = String(value ?? '');
-  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-  return s;
-}
-
-function exportCSV() {
-  if (!allResults.length) return;
-  const header = '日期,星座,领域,关键词,详细描述,注意事项,来源';
-  const rows = allResults.map(r =>
-    [r.date, r.sign, r.area, r.keyword, r.detail, r.note, r.source].map(escapeCsv).join(',')
-  );
-  downloadFile(header + '\n' + rows.join('\n'), '星座运势.csv', 'text/csv;charset=utf-8');
-}
-
-function exportJSON() {
-  if (!allResults.length) return;
-  downloadFile(JSON.stringify(allResults, null, 2), '星座运势.json', 'application/json');
-}
-
-function escapeMarkdownCell(value) {
-  return String(value ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
-}
-
-function copyMarkdown() {
-  if (!allResults.length) return;
-  let md = '| 日期 | 星座 | 领域 | 关键词 | 详细描述 | 注意事项 | 来源 |\n';
-  md += '|------|------|------|--------|----------|----------|------|\n';
-  allResults.forEach(r => {
-    md += '| ' + (r.date||'—') + ' | ' + escapeMarkdownCell(r.sign) + ' | ' + escapeMarkdownCell(r.area) + ' | ' + escapeMarkdownCell(r.keyword) + ' | ' + escapeMarkdownCell(r.detail) + ' | ' + escapeMarkdownCell(r.note) + ' | ' + escapeMarkdownCell(r.source) + ' |\n';
-  });
-  navigator.clipboard.writeText(md).then(() => {
-    showStatus('resultStatus', '✅ Markdown 已复制到剪贴板', 'success');
-  });
-}
-
-function downloadFile(content, filename, type) {
-  const blob = new Blob(['\uFEFF' + content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-// ─── UI helpers ───
-function showStatus(id, msg, type) {
-  const el = document.getElementById(id);
-  el.className = 'status-bar visible ' + type;
-  el.textContent = msg;
-}
-function toggleCollapse(header) {
-  header.classList.toggle('open');
-  header.nextElementSibling.classList.toggle('open');
-}
-</script>
-</body>
+
+        <footer class="footer">202606221000</footer>
+
+        <script src="public/utils.js"></script>
+        <script>
+            let currentPanel = 0;
+            let allResults = [];
+            let lastPrompt = "";
+
+            function stripHtml(html) {
+                // 使用 DOMParser 解析并提取纯文本，能更彻底地移除 script/style/iframe/svg 等
+                // 以及内联事件处理、隐藏元素等现代网页常见噪音。
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+
+                // 移除不应出现在正文中的标签和隐藏元素
+                const noiseSelectors = [
+                    "script",
+                    "style",
+                    "noscript",
+                    "iframe",
+                    "svg",
+                    "canvas",
+                    "template",
+                    "link",
+                    "meta",
+                    "head",
+                    'nav[role="navigation"]',
+                    "header",
+                    "footer",
+                    "[hidden]",
+                    '[style*="display:none" i]',
+                    '[style*="display: none" i]',
+                ].join(", ");
+                doc.querySelectorAll(noiseSelectors).forEach((el) =>
+                    el.remove(),
+                );
+
+                // 优先取 body 文本；若解析失败则降级为整文档文本
+                const root = doc.body || doc.documentElement;
+                let text = root.innerText || root.textContent || "";
+
+                // 解码常见 HTML 实体并规范化空白
+                const textarea = document.createElement("textarea");
+                textarea.innerHTML = text;
+                text = textarea.value;
+
+                const lines = text
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter(Boolean);
+                return lines
+                    .join("\n")
+                    .replace(/\n{3,}/g, "\n\n")
+                    .trim();
+            }
+
+            async function fetchUrlViaProxy(url) {
+                const r = await fetch(
+                    "/api/fetch?url=" + encodeURIComponent(url),
+                    {
+                        signal: AbortSignal.timeout(20000),
+                    },
+                );
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    throw new Error(
+                        err.error ||
+                            "代理抓取失败 (" +
+                                r.status +
+                                ")，请手动复制文字内容粘贴",
+                    );
+                }
+                const text = stripHtml(await r.text());
+                if (text.length <= 20)
+                    throw new Error("抓取到的内容为空，请手动复制文字内容粘贴");
+                return text;
+            }
+
+            // ─── Init ───
+            window.addEventListener("DOMContentLoaded", () => {
+                const saved = JSON.parse(
+                    localStorage.getItem("hc_config") || "{}",
+                );
+                document.getElementById("useCfAI").checked = !!saved.useCfAI;
+                if (saved.apiBase)
+                    document.getElementById("apiBase").value = saved.apiBase;
+                if (saved.apiKey)
+                    document.getElementById("apiKey").value = saved.apiKey;
+                if (saved.modelName && !saved.useCfAI)
+                    document.getElementById("modelName").value =
+                        saved.modelName;
+                if (saved.cfModelName && saved.useCfAI) {
+                    const cfSelect = document.getElementById("cfModelName");
+                    if (
+                        cfSelect &&
+                        ![...cfSelect.options].some(
+                            (o) =>
+                                o.value.toLowerCase() ===
+                                saved.cfModelName.toLowerCase(),
+                        )
+                    ) {
+                        const name = saved.cfModelName.split("/").pop();
+                        cfSelect.add(
+                            new Option(name, saved.cfModelName, true, true),
+                        );
+                    } else if (cfSelect) {
+                        cfSelect.value = saved.cfModelName;
+                    }
+                }
+                document.getElementById("enableThinking").checked =
+                    !!saved.enableThinking;
+                toggleCfAI();
+                if (saved.useCfAI || (saved.apiBase && saved.apiKey))
+                    togglePanel(1);
+
+                const tagRow = document.getElementById("signTags");
+                SIGNS.forEach((s) => {
+                    const tag = document.createElement("span");
+                    tag.className = "tag";
+                    tag.textContent = s;
+                    tag.onclick = () => tag.classList.toggle("selected");
+                    tagRow.appendChild(tag);
+                });
+
+                const promptArea = document.getElementById("customPrompt");
+                if (!promptArea.value.trim())
+                    promptArea.value = DEFAULT_PROMPT_TEMPLATE;
+            });
+
+            // ─── Panel navigation ───
+            function togglePanel(idx) {
+                document
+                    .querySelectorAll(".panel")
+                    .forEach((p) => p.classList.remove("visible"));
+                document.getElementById("p" + idx).classList.add("visible");
+                currentPanel = idx;
+                updateSteps();
+            }
+            function updateSteps() {
+                for (let i = 0; i < 4; i++) {
+                    const dot = document.getElementById("sd" + i);
+                    dot.className =
+                        "step-dot" +
+                        (i < currentPanel
+                            ? " done"
+                            : i === currentPanel
+                              ? " active"
+                              : "");
+                    if (i < currentPanel) dot.textContent = "✓";
+                    else dot.textContent = i + 1;
+                }
+            }
+
+            function goToStep(idx) {
+                if (idx === currentPanel) return;
+                if (idx === 2) return; // processing step is not navigable
+                if (idx === 3 && !allResults.length) {
+                    showStatus(
+                        "extractStatus",
+                        "⚠️ 还没有提取结果，无法查看结果页",
+                        "warning",
+                    );
+                    return;
+                }
+                togglePanel(idx);
+            }
+
+            // ─── Config ───
+            function fillExample(provider) {
+                const examples = {
+                    deepseek: {
+                        base: "https://api.deepseek.com/v1",
+                        model: "deepseek-chat",
+                    },
+                    openrouter: {
+                        base: "https://openrouter.ai/api/v1",
+                        model: "openai/gpt-4o-mini",
+                    },
+                    openai: {
+                        base: "https://api.openai.com/v1",
+                        model: "gpt-4o-mini",
+                    },
+                };
+                const ex = examples[provider];
+                if (ex) {
+                    document.getElementById("apiBase").value = ex.base;
+                    document.getElementById("modelName").value = ex.model;
+                }
+            }
+
+            function toggleCfAI() {
+                const useCfAI = document.getElementById("useCfAI").checked;
+                const customFields = document.getElementById("customApiFields");
+                const cfModelField = document.getElementById("cfModelField");
+                const thinkingField = document.getElementById("thinkingField");
+                if (customFields) {
+                    customFields.style.display = useCfAI ? "none" : "block";
+                }
+                if (cfModelField) {
+                    cfModelField.style.display = useCfAI ? "block" : "none";
+                }
+                if (thinkingField) {
+                    thinkingField.style.display = useCfAI ? "block" : "none";
+                }
+            }
+
+            function getConfig() {
+                const useCfAI = document.getElementById("useCfAI").checked;
+                const cfModelName =
+                    document.getElementById("cfModelName").value.trim() ||
+                    "@cf/zai-org/glm-4.7-flash";
+                const enableThinking =
+                    document.getElementById("enableThinking").checked;
+                if (useCfAI) {
+                    return {
+                        useCfAI: true,
+                        apiBase: "/api/chat",
+                        apiKey: "",
+                        modelName: cfModelName,
+                        cfModelName: cfModelName,
+                        enableThinking: enableThinking,
+                    };
+                }
+                return {
+                    useCfAI: false,
+                    apiBase: document
+                        .getElementById("apiBase")
+                        .value.trim()
+                        .replace(/\/+$/, ""),
+                    apiKey: document.getElementById("apiKey").value.trim(),
+                    modelName:
+                        document.getElementById("modelName").value.trim() ||
+                        "gpt-4o-mini",
+                    cfModelName: cfModelName,
+                    enableThinking: enableThinking,
+                };
+            }
+
+            function saveConfig() {
+                const cfg = getConfig();
+                localStorage.setItem("hc_config", JSON.stringify(cfg));
+                return cfg;
+            }
+
+            function saveAndNext() {
+                const cfg = saveConfig();
+                if (cfg.useCfAI) {
+                    const cfInput = document.getElementById("cfModelName");
+                    if (cfInput && !cfInput.value.trim()) {
+                        cfInput.value = "@cf/zai-org/glm-4.7-flash";
+                        saveConfig();
+                    }
+                } else if (!cfg.apiBase || !cfg.apiKey) {
+                    return showStatus(
+                        "apiStatus",
+                        "请填写 API URL和 Key",
+                        "warning",
+                    );
+                }
+                togglePanel(1);
+            }
+
+            // ─── Input helpers ───
+            function clearInput() {
+                document.getElementById("inputText").value = "";
+                document.getElementById("inputLinks").value = "";
+                document.getElementById("fetchLog").innerHTML = "";
+                document.getElementById("customPrompt").value =
+                    DEFAULT_PROMPT_TEMPLATE;
+            }
+
+            function getSelectedSigns() {
+                return [
+                    ...document.querySelectorAll("#signTags .tag.selected"),
+                ].map((t) => t.textContent);
+            }
+
+            // ─── Fetch links ───
+            async function fetchLinks() {
+                const raw = document.getElementById("inputLinks").value.trim();
+                if (!raw) return;
+                const urls = raw
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter((l) => l.startsWith("http"));
+                if (!urls.length) return;
+
+                const btn = document.getElementById("fetchBtn");
+                const log = document.getElementById("fetchLog");
+                const textArea = document.getElementById("inputText");
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span> 抓取中...';
+                log.innerHTML = "";
+                const existing = textArea.value.trim();
+                const parts = existing ? [existing] : [];
+
+                for (let i = 0; i < urls.length; i++) {
+                    const url = urls[i];
+                    const shortUrl =
+                        url.length > 60 ? url.slice(0, 60) + "..." : url;
+                    const logEntry = document.createElement("div");
+                    logEntry.style.cssText =
+                        "font-size:12px;color:var(--text2);margin-bottom:4px;";
+                    logEntry.textContent = "⏳ 正在抓取 " + shortUrl;
+                    log.appendChild(logEntry);
+
+                    try {
+                        const text = await fetchUrlViaProxy(url);
+                        parts.push("\n\n── 来源: " + url + " ──\n\n" + text);
+                        logEntry.textContent =
+                            "✅ " + shortUrl + "（" + text.length + " 字）";
+                        logEntry.style.color = "var(--green)";
+                    } catch (e) {
+                        logEntry.textContent =
+                            "❌ " + shortUrl + ": " + e.message;
+                        logEntry.style.color = "var(--red)";
+                    }
+                }
+
+                textArea.value = parts.join("");
+                btn.disabled = false;
+                btn.innerHTML = "🔗 抓取链接内容";
+            }
+
+            // ─── Build prompt ───
+            function buildPrompt(text, selectedSigns) {
+                const signFilter =
+                    selectedSigns.length > 0
+                        ? selectedSigns.join("、")
+                        : "所有星座";
+                const custom = document
+                    .getElementById("customPrompt")
+                    .value.trim();
+                let prompt;
+                if (custom) {
+                    prompt = custom
+                        .replace(/\{text\}/g, text)
+                        .replace(/\{signs\}/g, signFilter);
+                } else {
+                    prompt = DEFAULT_PROMPT_TEMPLATE.replace(
+                        /\{text\}/g,
+                        text,
+                    ).replace(/\{signs\}/g, signFilter);
+                }
+                lastPrompt = prompt;
+                document.getElementById("promptPreview").textContent = prompt;
+                return prompt;
+            }
+
+            // ─── Call AI with streaming ───
+            async function callAI(prompt, onStreamChunk, options = {}) {
+                const cfg = getConfig();
+                const systemMessage =
+                    options.system ||
+                    "你是一位专业的星座运势整理师。你的输出必须是合法、可解析的 JSON 数组。确保所有属性名用双引号包裹，属性名后有冒号，属性之间有逗号，最后一个属性后没有逗号。不要输出 markdown 代码块或任何解释文字。";
+                const messages = [
+                    { role: "system", content: systemMessage },
+                    { role: "user", content: prompt },
+                ];
+
+                const isCfAI = cfg.useCfAI;
+                const url = isCfAI
+                    ? "/api/chat"
+                    : cfg.apiBase + "/chat/completions";
+                const headers = {
+                    "Content-Type": "application/json",
+                    Accept: "text/event-stream",
+                };
+                if (!isCfAI) headers["Authorization"] = "Bearer " + cfg.apiKey;
+
+                // 防止请求无限挂起：首字节 120s、整体 300s 超时
+                // Cloudflare Workers AI 等模型冷启动或长输出时，首字节可能较慢
+                const abortCtrl = new AbortController();
+                let timeoutType = "";
+                const totalTimer = setTimeout(() => {
+                    timeoutType = "total";
+                    abortCtrl.abort();
+                }, 300000);
+                const firstByteTimer = setTimeout(() => {
+                    timeoutType = "firstByte";
+                    abortCtrl.abort();
+                }, 120000);
+                let timersCleared = false;
+                function clearAiTimers() {
+                    if (timersCleared) return;
+                    timersCleared = true;
+                    clearTimeout(totalTimer);
+                    clearTimeout(firstByteTimer);
+                }
+
+                // 长时间未开始输出时给用户提示
+                const progressText = document.getElementById("progressText");
+                let statusTimer = null;
+                if (
+                    progressText &&
+                    progressText.textContent === "正在连接 AI..."
+                ) {
+                    statusTimer = setTimeout(() => {
+                        if (progressText)
+                            progressText.textContent =
+                                "AI 响应较慢，仍在连接中，请稍候...";
+                    }, 5000);
+                }
+                function clearStatusTimer() {
+                    if (statusTimer) {
+                        clearTimeout(statusTimer);
+                        statusTimer = null;
+                    }
+                }
+
+                let resp;
+                try {
+                    resp = await fetch(url, {
+                        method: "POST",
+                        headers,
+                        signal: abortCtrl.signal,
+                        body: JSON.stringify({
+                            model: cfg.modelName,
+                            messages: messages,
+                            temperature: 0.3,
+                            max_tokens: 65536,
+                            stream: true,
+                            ...(cfg.useCfAI
+                                ? { enableThinking: cfg.enableThinking }
+                                : {}),
+                        }),
+                    });
+                } catch (e) {
+                    clearAiTimers();
+                    clearStatusTimer();
+                    if (e.name === "AbortError") {
+                        if (timeoutType === "firstByte") {
+                            throw new Error(
+                                "AI 在 120 秒内未开始返回数据，请求已中断。请检查网络、模型可用性或稍后重试。",
+                            );
+                        }
+                        throw new Error(
+                            "AI 请求超时（超过 300 秒未完成），已中断。请稍后重试或换用其他模型。",
+                        );
+                    }
+                    throw e;
+                }
+
+                if (!resp.ok) {
+                    clearAiTimers();
+                    clearStatusTimer();
+                    const errText = await resp.text();
+                    if (
+                        errText.includes("context_length") ||
+                        errText.includes("maximum context")
+                    ) {
+                        throw new Error(
+                            "上下文长度超限，请缩短输入内容或换用更大窗口的模型。",
+                        );
+                    }
+                    throw new Error(
+                        "API 错误 (" +
+                            resp.status +
+                            "): " +
+                            errText.slice(0, 300),
+                    );
+                }
+
+                // Fallback for APIs that ignore stream: true and return regular JSON
+                const contentType = resp.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) {
+                    clearAiTimers();
+                    clearStatusTimer();
+                    const data = await resp.json();
+                    if (data.error)
+                        throw new Error(data.error.message || data.error);
+                    if (!data.choices || !data.choices.length)
+                        throw new Error("API 返回格式异常：缺少 choices 字段");
+                    const content = data.choices[0].message?.content;
+                    if (content === null || content === undefined)
+                        throw new Error(
+                            "API 返回内容为空。若使用推理模型，请检查是否已关闭 thinking 模式。",
+                        );
+                    if (onStreamChunk && content)
+                        onStreamChunk(content, content);
+                    return content;
+                }
+
+                // Streaming SSE parse
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = "";
+                let buffer = "";
+                let firstChunkReceived = false;
+
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        if (!firstChunkReceived) {
+                            firstChunkReceived = true;
+                            clearAiTimers();
+                            clearStatusTimer();
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop() || "";
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed.startsWith("data: ")) continue;
+                            const data = trimmed.slice(6);
+                            if (data === "[DONE]") continue;
+
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.error)
+                                    throw new Error(
+                                        parsed.error.message || parsed.error,
+                                    );
+                                const delta =
+                                    parsed.choices?.[0]?.delta?.content || "";
+                                if (delta) {
+                                    fullContent += delta;
+                                    if (onStreamChunk)
+                                        onStreamChunk(fullContent, delta);
+                                }
+                            } catch (e) {
+                                if (
+                                    e.message &&
+                                    !e.message.startsWith("Unexpected token")
+                                )
+                                    throw e;
+                            }
+                        }
+                    }
+
+                    // Flush remaining buffer
+                    if (buffer.trim()) {
+                        const trimmed = buffer.trim();
+                        if (
+                            trimmed.startsWith("data: ") &&
+                            trimmed.slice(6) !== "[DONE]"
+                        ) {
+                            try {
+                                const parsed = JSON.parse(trimmed.slice(6));
+                                const delta =
+                                    parsed.choices?.[0]?.delta?.content || "";
+                                if (delta) fullContent += delta;
+                            } catch (_) {}
+                        }
+                    }
+                } catch (e) {
+                    clearAiTimers();
+                    clearStatusTimer();
+                    if (e.name === "AbortError") {
+                        throw new Error(
+                            "AI 请求超时（流式读取中断），请稍后重试。",
+                        );
+                    }
+                    throw e;
+                }
+
+                clearAiTimers();
+                clearStatusTimer();
+                if (!fullContent)
+                    throw new Error(
+                        "AI 返回内容为空。若使用 GLM-4.7-Flash / Kimi / GPT-OSS 等推理模型，请检查是否已关闭 thinking 模式或降低 reasoning_effort。",
+                    );
+                return fullContent;
+            }
+
+            async function parseExtractedJson(raw) {
+                const jsonStr = extractJsonStr(raw);
+                try {
+                    return JSON.parse(jsonStr);
+                } catch (parseErr) {
+                    try {
+                        return JSON.parse(repairJson(jsonStr));
+                    } catch {
+                        throw new Error(
+                            "JSON 解析失败: " +
+                                parseErr.message +
+                                "。可能是 AI 输出过长被截断，请减少输入内容、缩短提示词，或换用支持更长输出的模型。",
+                        );
+                    }
+                }
+            }
+
+            // ─── Extract ───
+            async function startExtract() {
+                const cfg = getConfig();
+                if (!cfg.useCfAI && (!cfg.apiBase || !cfg.apiKey)) {
+                    showStatus(
+                        "extractStatus",
+                        "请先在右上角 ⚙️ 设置 API",
+                        "warning",
+                    );
+                    return;
+                }
+                saveConfig();
+
+                const text = document.getElementById("inputText").value.trim();
+                if (!text)
+                    return showStatus(
+                        "extractStatus",
+                        "请粘贴运势文字内容",
+                        "warning",
+                    );
+
+                if (text.length > 15000) {
+                    showStatus(
+                        "extractStatus",
+                        "⚠️ 内容较长（" +
+                            text.length +
+                            "字），处理可能需要更长时间",
+                        "warning",
+                    );
+                }
+
+                const selectedSigns = getSelectedSigns();
+                const prompt = buildPrompt(text, selectedSigns);
+
+                const startBtn = document.getElementById("startExtractBtn");
+                if (startBtn) startBtn.disabled = true;
+
+                togglePanel(2);
+                const progressText = document.getElementById("progressText");
+                const streamPreview = document.getElementById("streamPreview");
+                progressText.textContent = "正在连接 AI...";
+                if (streamPreview) streamPreview.textContent = "";
+
+                try {
+                    const raw = await callAI(prompt, (full, delta) => {
+                        progressText.textContent =
+                            "AI 正在输出...（已接收 " + full.length + " 字）";
+                        if (streamPreview) {
+                            streamPreview.textContent = full.slice(-1200);
+                            streamPreview.scrollTop =
+                                streamPreview.scrollHeight;
+                        }
+                    });
+
+                    if (!raw || typeof raw !== "string") {
+                        showStatus(
+                            "extractStatus",
+                            "⚠️ AI 返回内容为空，请检查 API 或重试",
+                            "error",
+                        );
+                        togglePanel(1);
+                        return;
+                    }
+
+                    progressText.textContent = "正在解析结果...";
+                    let results;
+                    try {
+                        results = await parseExtractedJson(raw);
+                        if (!Array.isArray(results))
+                            throw new Error("返回的不是 JSON 数组");
+                        if (results.length === 0) {
+                            showStatus(
+                                "extractStatus",
+                                "⚠️ AI 未提取到任何记录",
+                                "warning",
+                            );
+                            togglePanel(1);
+                            return;
+                        }
+                    } catch (e) {
+                        showStatus(
+                            "extractStatus",
+                            "⚠️ AI 返回格式异常: " + e.message,
+                            "error",
+                        );
+                        console.error("Raw AI response:", raw);
+                        togglePanel(1);
+                        return;
+                    }
+
+                    const { year: defaultYear, month: defaultMonth } =
+                        inferYearMonth(text);
+                    results = results
+                        .map((r) => {
+                            const rawDate = String(r.date || "").trim();
+                            const rawPeriod = String(
+                                r.period || rawDate || "",
+                            ).trim();
+                            const normalizedDate = normalizeDate(
+                                rawDate,
+                                defaultYear,
+                                defaultMonth,
+                            );
+                            return {
+                                date: normalizedDate,
+                                period: rawPeriod || normalizedDate,
+                                sign: r.sign || "未知",
+                                area: r.area || "综合",
+                                keyword: r.keyword || "",
+                                detail: r.detail || "",
+                                note: r.note || "",
+                                source: r.source || "未知",
+                            };
+                        })
+                        .filter(
+                            (r) =>
+                                r.date !== "" &&
+                                /^\d{4}-\d{2}-\d{2}$/.test(r.date),
+                        );
+
+                    if (results.length === 0) {
+                        showStatus(
+                            "extractStatus",
+                            "⚠️ AI 返回的记录均缺少日期，请检查提示词或输入内容",
+                            "warning",
+                        );
+                        togglePanel(1);
+                        return;
+                    }
+
+                    allResults = allResults.concat(results);
+                    renderTable(allResults);
+                    togglePanel(3);
+                    showStatus(
+                        "resultStatus",
+                        "✅ 成功提取 " +
+                            results.length +
+                            " 条记录（累计 " +
+                            allResults.length +
+                            " 条）",
+                        "success",
+                    );
+                    document.getElementById("pPrompt").style.display = "block";
+                } catch (e) {
+                    showStatus("extractStatus", "❌ " + e.message, "error");
+                    togglePanel(1);
+                } finally {
+                    if (startBtn) startBtn.disabled = false;
+                }
+            }
+
+            // ─── Render ───
+            function renderTable(data) {
+                const wrap = document.getElementById("resultWrap");
+                if (!data.length) {
+                    wrap.innerHTML =
+                        '<div class="empty"><div class="icon">📭</div><p>暂无数据</p></div>';
+                    return;
+                }
+                data.sort((a, b) => {
+                    if (a.date && b.date) return a.date.localeCompare(b.date);
+                    if (a.date) return -1;
+                    if (b.date) return 1;
+                    return SIGNS.indexOf(a.sign) - SIGNS.indexOf(b.sign);
+                });
+                let html =
+                    '<table class="result-table"><thead><tr><th>日期</th><th>星座</th><th>领域</th><th>关键词</th><th>详细描述</th><th>注意事项</th><th>来源</th></tr></thead><tbody>';
+                data.forEach((r) => {
+                    const areaClass = "area-" + (r.area || "综合");
+                    html +=
+                        '<tr><td class="date-cell">' +
+                        (r.date || "—") +
+                        '</td><td class="sign-cell">' +
+                        escapeHtml(r.sign) +
+                        '</td><td><span class="area-cell ' +
+                        areaClass +
+                        '">' +
+                        escapeHtml(r.area) +
+                        "</span></td><td>" +
+                        escapeHtml(r.keyword) +
+                        "</td><td>" +
+                        escapeHtml(r.detail) +
+                        "</td><td>" +
+                        escapeHtml(r.note) +
+                        '</td><td style="white-space:nowrap;color:var(--text2);font-size:12px;">' +
+                        escapeHtml(r.source) +
+                        "</td></tr>";
+                });
+                html += "</tbody></table>";
+                wrap.innerHTML = html;
+            }
+
+            function escapeHtml(s) {
+                const d = document.createElement("div");
+                d.textContent = s || "";
+                return d.innerHTML;
+            }
+
+            // ─── Export ───
+            function escapeCsv(value) {
+                const s = String(value ?? "");
+                if (/[",\n\r]/.test(s))
+                    return '"' + s.replace(/"/g, '""') + '"';
+                return s;
+            }
+
+            function exportCSV() {
+                if (!allResults.length) return;
+                const header = "日期,星座,领域,关键词,详细描述,注意事项,来源";
+                const rows = allResults.map((r) =>
+                    [
+                        r.date,
+                        r.sign,
+                        r.area,
+                        r.keyword,
+                        r.detail,
+                        r.note,
+                        r.source,
+                    ]
+                        .map(escapeCsv)
+                        .join(","),
+                );
+                downloadFile(
+                    header + "\n" + rows.join("\n"),
+                    "星座运势.csv",
+                    "text/csv;charset=utf-8",
+                );
+            }
+
+            function exportJSON() {
+                if (!allResults.length) return;
+                downloadFile(
+                    JSON.stringify(allResults, null, 2),
+                    "星座运势.json",
+                    "application/json",
+                );
+            }
+
+            function escapeMarkdownCell(value) {
+                return String(value ?? "")
+                    .replace(/\|/g, "\\|")
+                    .replace(/\n/g, " ");
+            }
+
+            function copyMarkdown() {
+                if (!allResults.length) return;
+                let md =
+                    "| 日期 | 星座 | 领域 | 关键词 | 详细描述 | 注意事项 | 来源 |\n";
+                md +=
+                    "|------|------|------|--------|----------|----------|------|\n";
+                allResults.forEach((r) => {
+                    md +=
+                        "| " +
+                        (r.date || "—") +
+                        " | " +
+                        escapeMarkdownCell(r.sign) +
+                        " | " +
+                        escapeMarkdownCell(r.area) +
+                        " | " +
+                        escapeMarkdownCell(r.keyword) +
+                        " | " +
+                        escapeMarkdownCell(r.detail) +
+                        " | " +
+                        escapeMarkdownCell(r.note) +
+                        " | " +
+                        escapeMarkdownCell(r.source) +
+                        " |\n";
+                });
+                navigator.clipboard.writeText(md).then(() => {
+                    showStatus(
+                        "resultStatus",
+                        "✅ Markdown 已复制到剪贴板",
+                        "success",
+                    );
+                });
+            }
+
+            function downloadFile(content, filename, type) {
+                const blob = new Blob(["\uFEFF" + content], { type });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // ─── UI helpers ───
+            function showStatus(id, msg, type) {
+                const el = document.getElementById(id);
+                el.className = "status-bar visible " + type;
+                el.textContent = msg;
+            }
+            function toggleCollapse(header) {
+                header.classList.toggle("open");
+                header.nextElementSibling.classList.toggle("open");
+            }
+        </script>
+    </body>
 </html>
