@@ -40,9 +40,6 @@
                 --text-base: 17px;
                 --text-lg: 21px;
                 --text-xl: 28px;
-                --text-2xl: 40px;
-                --text-3xl: 56px;
-                --text-4xl: 80px;
                 --leading-body: 1.47;
                 --leading-tight: 1.05;
                 --tracking-display: -0.015em;
@@ -58,10 +55,8 @@
                 --section-y-tablet: 64px;
                 --section-y-phone: 40px;
                 --radius-sm: 8px;
-                --radius-md: 12px;
                 --radius-lg: 18px;
                 --radius-pill: 980px;
-                --elev-flat: none;
                 --elev-ring: 0 0 0 1px var(--border);
                 --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.08);
                 --focus-ring: 0 0 0 4px
@@ -99,41 +94,6 @@
                 --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.32);
                 --focus-ring: 0 0 0 4px
                     color-mix(in oklab, var(--accent), transparent 60%);
-            }
-
-            @media (prefers-color-scheme: dark) {
-                :root:not([data-theme]) {
-                    --bg: #000000;
-                    --surface: #1d1d1f;
-                    --surface-warm: #272729;
-                    --fg: #f5f5f7;
-                    --fg-2: #a1a1a6;
-                    --muted: #86868b;
-                    --meta: #6e6e73;
-                    --border: #424245;
-                    --border-soft: #2a2a2c;
-                    --accent: #2997ff;
-                    --accent-on: #000000;
-                    --accent-hover: #4aa3ff;
-                    --accent-active: #0077ed;
-                    --success: #32d74b;
-                    --warn: #ffd60a;
-                    --danger: #ff453a;
-                    --success-text: color-mix(
-                        in oklab,
-                        var(--success),
-                        white 22%
-                    );
-                    --danger-text: color-mix(
-                        in oklab,
-                        var(--danger),
-                        white 20%
-                    );
-                    --warn-text: color-mix(in oklab, var(--warn), black 18%);
-                    --elev-raised: 0 12px 32px rgba(0, 0, 0, 0.32);
-                    --focus-ring: 0 0 0 4px
-                        color-mix(in oklab, var(--accent), transparent 60%);
-                }
             }
 
             *,
@@ -764,35 +724,6 @@
                 color: var(--fg-2);
                 border: 1px solid var(--border-soft);
             }
-            .area-badge.area-事业 {
-                background: color-mix(in oklab, var(--accent), transparent 88%);
-                color: var(--accent);
-                border-color: color-mix(in oklab, var(--accent), transparent 80%);
-            }
-            .area-badge.area-感情 {
-                background: color-mix(in oklab, #ff2d55, transparent 88%);
-                color: #ff2d55;
-                border-color: color-mix(in oklab, #ff2d55, transparent 80%);
-            }
-            .area-badge.area-财运 {
-                background: color-mix(in oklab, var(--warn), transparent 88%);
-                color: var(--warn-text);
-                border-color: color-mix(in oklab, var(--warn), transparent 80%);
-            }
-            .area-badge.area-健康 {
-                background: color-mix(in oklab, var(--success), transparent 88%);
-                color: var(--success-text);
-                border-color: color-mix(in oklab, var(--success), transparent 80%);
-            }
-            .area-badge.area-学业 {
-                background: color-mix(in oklab, #af52de, transparent 88%);
-                color: #af52de;
-                border-color: color-mix(in oklab, #af52de, transparent 80%);
-            }
-            .area-badge.area-综合 {
-                background: var(--surface);
-                color: var(--fg-2);
-            }
 
             .processing-state {
                 display: flex;
@@ -934,27 +865,17 @@
         </style>
         <script>
             (function () {
-                let stored = null;
+                let stored = "system";
                 try {
-                    stored = localStorage.getItem("hc_theme");
+                    stored = localStorage.getItem("hc_theme") || "system";
                 } catch (e) {}
-                const prefersDark = window.matchMedia(
-                    "(prefers-color-scheme: dark)",
-                ).matches;
-                const theme =
-                    stored === "light" ||
-                    stored === "dark" ||
+                const mode =
                     stored === "system"
-                        ? stored
-                        : "system";
-                const active =
-                    theme === "system"
-                        ? prefersDark
+                        ? window.matchMedia("(prefers-color-scheme: dark)").matches
                             ? "dark"
                             : "light"
-                        : theme;
-                document.documentElement.setAttribute("data-theme", active);
-                document.documentElement.dataset.themeMode = theme;
+                        : stored;
+                document.documentElement.setAttribute("data-theme", mode);
             })();
         </script>
     </head>
@@ -963,16 +884,6 @@
             <div class="container nav-inner">
                 <div class="nav-brand">星座运势日历生成器</div>
                 <div class="nav-links">
-                    <a
-                        href="#tool"
-                        id="navResult"
-                        style="display: none"
-                        onclick="
-                            goToStep(3);
-                            return false;
-                        "
-                        >结果</a
-                    >
                     <div
                         class="theme-toggle"
                         role="group"
@@ -982,6 +893,7 @@
                             type="button"
                             class="theme-btn"
                             id="themeLight"
+                            data-mode="light"
                             aria-label="浅色模式"
                             aria-pressed="false"
                             onclick="setTheme('light')"
@@ -1012,6 +924,7 @@
                             type="button"
                             class="theme-btn"
                             id="themeDark"
+                            data-mode="dark"
                             aria-label="深色模式"
                             aria-pressed="false"
                             onclick="setTheme('dark')"
@@ -1035,6 +948,7 @@
                             type="button"
                             class="theme-btn"
                             id="themeSystem"
+                            data-mode="system"
                             aria-label="跟随系统"
                             aria-pressed="false"
                             onclick="setTheme('system')"
@@ -1075,7 +989,6 @@
                             role="tab"
                             type="button"
                             onclick="goToStep(0)"
-                            onkeydown="handleStepKey(event, 0)"
                             aria-selected="true"
                             aria-controls="p0"
                             aria-current="step"
@@ -1090,7 +1003,6 @@
                             role="tab"
                             type="button"
                             onclick="goToStep(1)"
-                            onkeydown="handleStepKey(event, 1)"
                             aria-selected="false"
                             aria-controls="p1"
                             tabindex="0"
@@ -1117,7 +1029,6 @@
                             role="tab"
                             type="button"
                             onclick="goToStep(3)"
-                            onkeydown="handleStepKey(event, 3)"
                             aria-selected="false"
                             aria-controls="p3"
                             tabindex="0"
@@ -1595,18 +1506,11 @@ https://www.xiaohongshu.com/..."
                 document.documentElement.setAttribute("data-theme", active);
                 document.documentElement.dataset.themeMode = mode;
                 lsSet("hc_theme", mode);
-                ["themeLight", "themeDark", "themeSystem"].forEach((id) => {
-                    const btn = document.getElementById(id);
-                    if (btn)
-                        btn.setAttribute(
-                            "aria-pressed",
-                            id ===
-                                "theme" +
-                                    (mode.charAt(0).toUpperCase() +
-                                        mode.slice(1))
-                                ? "true"
-                                : "false",
-                        );
+                document.querySelectorAll(".theme-btn").forEach((btn) => {
+                    btn.setAttribute(
+                        "aria-pressed",
+                        btn.dataset.mode === mode ? "true" : "false",
+                    );
                 });
             }
             function setTheme(mode) {
@@ -1634,13 +1538,13 @@ https://www.xiaohongshu.com/..."
             let allResults = [];
             let lastPrompt = "";
 
-            function scrollToSection(id) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                const top =
-                    el.getBoundingClientRect().top + window.pageYOffset - 60;
-                window.scrollTo({ top, behavior: "smooth" });
-            }
+            const areaStyles = {
+                事业: "background:color-mix(in oklab,var(--accent),transparent 88%);color:var(--accent);border-color:color-mix(in oklab,var(--accent),transparent 80%)",
+                感情: "background:color-mix(in oklab,#ff2d55,transparent 88%);color:#ff2d55;border-color:color-mix(in oklab,#ff2d55,transparent 80%)",
+                财运: "background:color-mix(in oklab,var(--warn),transparent 88%);color:var(--warn-text);border-color:color-mix(in oklab,var(--warn),transparent 80%)",
+                健康: "background:color-mix(in oklab,var(--success),transparent 88%);color:var(--success-text);border-color:color-mix(in oklab,var(--success),transparent 80%)",
+                学业: "background:color-mix(in oklab,#af52de,transparent 88%);color:#af52de;border-color:color-mix(in oklab,#af52de,transparent 80%)",
+            };
 
             function stripHtml(html) {
                 const parser = new DOMParser();
@@ -1745,12 +1649,6 @@ https://www.xiaohongshu.com/..."
                     tag.setAttribute("role", "checkbox");
                     tag.setAttribute("aria-checked", "false");
                     tag.setAttribute("aria-label", "选择星座 " + s);
-                    tag.onkeydown = (e) => {
-                        if (e.key === " " || e.key === "Enter") {
-                            e.preventDefault();
-                            tag.click();
-                        }
-                    };
                     tag.onclick = () => {
                         const selected = tag.classList.toggle("selected");
                         tag.setAttribute(
@@ -1776,8 +1674,6 @@ https://www.xiaohongshu.com/..."
                 currentPanel = idx;
                 updateSteps();
                 if (idx === 3) {
-                    document.getElementById("navResult").style.display =
-                        "inline";
                     updateExportButtons();
                 }
             }
@@ -1805,13 +1701,6 @@ https://www.xiaohongshu.com/..."
                     step.setAttribute("tabindex", disabled ? "-1" : "0");
                     const dot = step.querySelector(".step-dot");
                     dot.textContent = done ? "✓" : i + 1;
-                }
-            }
-
-            function handleStepKey(e, idx) {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    goToStep(idx);
                 }
             }
 
@@ -2398,38 +2287,25 @@ https://www.xiaohongshu.com/..."
                     if (b.date) return 1;
                     return SIGNS.indexOf(a.sign) - SIGNS.indexOf(b.sign);
                 });
-                let html =
-                    '<table class="result-table"><thead><tr><th>日期</th><th>星座</th><th>领域</th><th>关键词</th><th>详细描述</th><th>注意事项</th><th>来源</th></tr></thead><tbody>';
-                data.forEach((r) => {
-                    html +=
-                        "<tr>" +
-                        '<td class="date-cell">' +
-                        (r.date || "—") +
-                        "</td>" +
-                        '<td class="sign-cell">' +
-                        escapeHtml(r.sign) +
-                        "</td>" +
-                        '<td><span class="area-badge area-' +
-                        escapeHtml(r.area) +
-                        '">' +
-                        escapeHtml(r.area) +
-                        "</span></td>" +
-                        "<td>" +
-                        escapeHtml(r.keyword) +
-                        "</td>" +
-                        "<td>" +
-                        escapeHtml(r.detail) +
-                        "</td>" +
-                        "<td>" +
-                        escapeHtml(r.note) +
-                        "</td>" +
-                        '<td style="white-space:nowrap;color:var(--muted);font-size:var(--text-xs)">' +
-                        escapeHtml(r.source) +
-                        "</td>" +
-                        "</tr>";
-                });
-                html += "</tbody></table>";
-                wrap.innerHTML = html;
+                wrap.innerHTML = `
+                    <table class="result-table"><thead><tr><th>日期</th><th>星座</th><th>领域</th><th>关键词</th><th>详细描述</th><th>注意事项</th><th>来源</th></tr></thead><tbody>
+                    ${data
+                        .map(
+                            (r) => `
+                        <tr>
+                            <td class="date-cell">${r.date || "—"}</td>
+                            <td class="sign-cell">${escapeHtml(r.sign)}</td>
+                            <td><span class="area-badge" style="${areaStyles[r.area] || ""}">${escapeHtml(r.area)}</span></td>
+                            <td>${escapeHtml(r.keyword)}</td>
+                            <td>${escapeHtml(r.detail)}</td>
+                            <td>${escapeHtml(r.note)}</td>
+                            <td style="white-space:nowrap;color:var(--muted);font-size:var(--text-xs)">${escapeHtml(r.source)}</td>
+                        </tr>
+                    `,
+                        )
+                        .join("")}
+                    </tbody></table>
+                `;
             }
 
             function escapeHtml(s) {
@@ -2485,28 +2361,28 @@ https://www.xiaohongshu.com/..."
 
             function copyMarkdown() {
                 if (!allResults.length) return;
-                let md =
-                    "| 日期 | 星座 | 领域 | 关键词 | 详细描述 | 注意事项 | 来源 |\n";
-                md +=
-                    "|------|------|------|--------|----------|----------|------|\n";
-                allResults.forEach((r) => {
-                    md +=
-                        "| " +
-                        (r.date || "—") +
-                        " | " +
-                        escapeMarkdownCell(r.sign) +
-                        " | " +
-                        escapeMarkdownCell(r.area) +
-                        " | " +
-                        escapeMarkdownCell(r.keyword) +
-                        " | " +
-                        escapeMarkdownCell(r.detail) +
-                        " | " +
-                        escapeMarkdownCell(r.note) +
-                        " | " +
-                        escapeMarkdownCell(r.source) +
-                        " |\n";
-                });
+                const md =
+                    "| 日期 | 星座 | 领域 | 关键词 | 详细描述 | 注意事项 | 来源 |\n" +
+                    "|------|------|------|--------|----------|----------|------|\n" +
+                    allResults
+                        .map(
+                            (r) =>
+                                "| " +
+                                (r.date || "—") +
+                                " | " +
+                                [
+                                    r.sign,
+                                    r.area,
+                                    r.keyword,
+                                    r.detail,
+                                    r.note,
+                                    r.source,
+                                ]
+                                    .map(escapeMarkdownCell)
+                                    .join(" | ") +
+                                " |",
+                        )
+                        .join("\n");
                 navigator.clipboard
                     .writeText(md)
                     .then(() =>
